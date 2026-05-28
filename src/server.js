@@ -52,6 +52,58 @@ async function generateUsernameSuggestions(username) {
   return suggestions;
 }
 
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASS;
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: emailUser || '',
+    pass: emailPass || ''
+  }
+});
+
+// SMTP Transporter verification on startup
+if (emailUser && emailPass) {
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Nodemailer SMTP Configuration Error:', error.message);
+    } else {
+      console.log('🚀 Nodemailer SMTP Transporter verified successfully!');
+    }
+  });
+} else {
+  console.warn('⚠️ SMTP credentials not set. Email verification will fail until EMAIL_USER and EMAIL_PASS are set in your environment!');
+}
+
+// Reusable function to send OTP email
+async function sendOTPEmail(email, otp) {
+  const mailOptions = {
+    from: `"AetherCall AI Shield" <${emailUser}>`,
+    to: email.toLowerCase().trim(),
+    subject: 'Your Verification OTP',
+    text: `Your OTP is: ${otp}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background-color: #090b0f; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <span style="font-size: 2.5rem; font-weight: bold; background: linear-gradient(135deg, #7c3aed, #4f46e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Æ AetherCall AI</span>
+        </div>
+        <h2 style="font-size: 1.4rem; font-weight: 600; text-align: center; margin-bottom: 10px; color: #fff;">Verify Your Identity</h2>
+        <p style="font-size: 0.95rem; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 25px;">
+          Your OTP code is below. It will expire in 5 minutes.
+        </p>
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 15px 25px; text-align: center; font-size: 2.2rem; font-weight: 700; letter-spacing: 6px; color: #fff; margin-bottom: 25px; font-family: monospace;">
+          ${otp}
+        </div>
+        <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
+          If you did not request this verification, please ignore this email safely.
+        </p>
+      </div>
+    `
+  };
+  return transporter.sendMail(mailOptions);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -135,60 +187,13 @@ app.post('/api/otp/send', async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
     });
 
-    const emailUser = process.env.EMAIL_USER;
-    const emailPass = process.env.EMAIL_PASS;
-
-    // Check if real SMTP credentials are set
-    if (emailUser && emailPass) {
-      console.log(`[OTP] Sending real verification email to: ${cleanEmail}`);
-      
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: emailUser,
-          pass: emailPass
-        }
-      });
-
-      const actionText = type === 'register' ? 'activate your AetherCall AI account' : 'reset your AetherCall AI password';
-      const mailOptions = {
-        from: `"AetherCall AI Shield" <${emailUser}>`,
-        to: cleanEmail,
-        subject: `[AetherCall AI] OTP Verification Code: ${otp}`,
-        html: `
-          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background-color: #090b0f; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
-            <div style="text-align: center; margin-bottom: 25px;">
-              <span style="font-size: 2.5rem; font-weight: bold; background: linear-gradient(135deg, #7c3aed, #4f46e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Æ AetherCall AI</span>
-            </div>
-            <h2 style="font-size: 1.4rem; font-weight: 600; text-align: center; margin-bottom: 10px; color: #fff;">Verify Your Identity</h2>
-            <p style="font-size: 0.95rem; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 25px;">
-              Use the secure 6-digit OTP code below to ${actionText}. This code will expire in 5 minutes.
-            </p>
-            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 15px 25px; text-align: center; font-size: 2.2rem; font-weight: 700; letter-spacing: 6px; color: #fff; margin-bottom: 25px; font-family: monospace;">
-              ${otp}
-            </div>
-            <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
-              If you did not request this verification, please ignore this email safely.
-            </p>
-          </div>
-        `
-      };
-
-      await transporter.sendMail(mailOptions);
-      res.json({ success: true, simulated: false });
-    } else {
-      // Credentials not set, fall back to Simulated Development Mode
-      console.log(`[OTP-MOCK] Simulated SMTP Relay generated OTP: ${otp} for ${cleanEmail}`);
-      res.json({
-        success: true,
-        simulated: true,
-        otp
-      });
-    }
+    console.log(`[OTP] Sending verification email to: ${cleanEmail}`);
+    await sendOTPEmail(cleanEmail, otp);
+    res.json({ success: true, message: "OTP sent successfully" });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to generate and dispatch OTP.' });
+    console.error('❌ Failed to send OTP email:', err);
+    res.status(500).json({ error: 'Failed to generate and dispatch verification email. Make sure SMTP variables are set.' });
   }
 });
 
@@ -224,6 +229,48 @@ app.post('/api/otp/verify', (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error during verification.' });
+  }
+});
+
+// Test Email Route for debugging
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const targetEmail = req.query.email;
+    if (!targetEmail) {
+      return res.status(400).json({ error: 'Query parameter ?email=... is required.' });
+    }
+
+    if (!emailUser || !emailPass) {
+      return res.status(500).json({ 
+        error: 'SMTP credentials missing from environment. Add EMAIL_USER and EMAIL_PASS to your .env file.' 
+      });
+    }
+
+    console.log(`[SMTP-TEST] Sending simple verification test to: ${targetEmail}`);
+    
+    const mailOptions = {
+      from: `"AetherCall SMTP Test" <${emailUser}>`,
+      to: targetEmail.toLowerCase().trim(),
+      subject: 'AetherCall AI - SMTP Verification Connection Test',
+      text: 'Congratulations! Your SMTP Gmail connection is working perfectly.',
+      html: `
+        <div style="font-family: sans-serif; max-width: 450px; margin: 20px auto; padding: 25px; background-color: #0f172a; color: #f8fafc; border-radius: 10px; border: 1px solid #1e293b;">
+          <h2 style="color: #38bdf8; margin-top: 0;">🚀 SMTP Connection Verified</h2>
+          <p>This is a successful connection test email sent from <strong>AetherCall AI</strong>.</p>
+          <p style="color: #94a3b8; font-size: 0.9rem;">Your EMAIL_USER and EMAIL_PASS environmental variables are correctly set and verified!</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: `Test email successfully sent to ${targetEmail}!` });
+
+  } catch (err) {
+    console.error('❌ SMTP Connection Test Failed:', err);
+    res.status(500).json({ 
+      error: 'SMTP connection test failed. Check server console for full error logs.', 
+      details: err.message 
+    });
   }
 });
 

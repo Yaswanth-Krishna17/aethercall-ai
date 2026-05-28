@@ -125,9 +125,13 @@
         <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
         <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
       </div>
+      
+      <div style="margin-top: 15px; margin-bottom: 10px; font-size: 0.82rem; color: var(--text-muted);">
+        Didn't receive the email? <span id="link-resend-otp" style="color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-weight: 500;">Resend Code</span>
+      </div>
 
       <div id="otp-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; border-radius: 8px;">
-        Incorrect code. Please check your simulated SMTP mail relay!
+        Incorrect code. Please check your email inbox!
       </div>
 
       <div style="display: flex; gap: 15px; margin-top: 10px;">
@@ -174,6 +178,9 @@
           <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
           <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
           <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+        </div>
+        <div style="margin-top: 15px; font-size: 0.82rem; color: var(--text-muted);">
+          Didn't receive the email? <span id="link-resend-reset-otp" style="color: var(--accent-primary); cursor: pointer; text-decoration: underline; font-weight: 500;">Resend Code</span>
         </div>
         <div style="display: flex; gap: 15px; margin-top: 25px;">
           <button type="button" id="btn-cancel-reset-2" class="btn btn-secondary" style="flex: 1;">Cancel</button>

@@ -208,14 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
         password
       };
 
-      if (data.simulated) {
-        // Trigger SMTP Mailer Toast Notification with simulated OTP code
-        const otpCode = data.otp;
-        smtpToastText.innerHTML = `Secure verification code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${otpCode.slice(0,3)}-${otpCode.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
-      } else {
-        // Real email dispatched successfully
-        smtpToastText.innerHTML = `📨 Verification email sent! Please check your inbox (and spam folder) for <strong>${email}</strong>.`;
-      }
+      // Real email dispatched successfully
+      smtpToastText.innerHTML = `📨 Verification email sent! Please check your inbox (and spam folder) for <strong>${email}</strong>.`;
       smtpToast.classList.add('active');
 
       // Display Glassmorphic OTP Shield Overlay
@@ -549,13 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         email
       };
 
-      if (data.simulated) {
-        // Trigger SMTP Mailer Toast
-        const resetCode = data.otp;
-        smtpToastText.innerHTML = `Password Reset OTP code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${resetCode.slice(0,3)}-${resetCode.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
-      } else {
-        smtpToastText.innerHTML = `📨 Verification email sent! Please check your inbox (and spam folder) for <strong>${email}</strong>.`;
-      }
+      smtpToastText.innerHTML = `📨 Verification email sent! Please check your inbox (and spam folder) for <strong>${email}</strong>.`;
       smtpToast.classList.add('active');
 
       // Transition to Step 2
@@ -719,4 +707,97 @@ document.addEventListener('DOMContentLoaded', () => {
       showError(resetModalError, 'Database connection error. Try again.');
     }
   });
+
+  // --- 8. RESEND OTP THROTTLED ENGINE ---
+  const linkResendOtp = document.getElementById('link-resend-otp');
+  const linkResendResetOtp = document.getElementById('link-resend-reset-otp');
+  
+  let resendTimer = null;
+  let countdownValue = 0;
+
+  function startResendCountdown(element) {
+    element.style.pointerEvents = 'none';
+    element.style.opacity = '0.5';
+    countdownValue = 60;
+    
+    if (resendTimer) clearInterval(resendTimer);
+    
+    resendTimer = setInterval(() => {
+      countdownValue--;
+      if (countdownValue <= 0) {
+        clearInterval(resendTimer);
+        element.style.pointerEvents = 'auto';
+        element.style.opacity = '1';
+        element.textContent = 'Resend Code';
+      } else {
+        element.textContent = `Resend Code (${countdownValue}s)`;
+      }
+    }, 1000);
+  }
+
+  // Registration Resend Click Handler
+  if (linkResendOtp) {
+    linkResendOtp.addEventListener('click', async () => {
+      if (!pendingRegistration) return;
+      
+      const { email, username } = pendingRegistration;
+      otpError.style.display = 'none';
+      
+      try {
+        linkResendOtp.textContent = 'Sending...';
+        const res = await fetch('/api/otp/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, username, type: 'register' })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+          otpError.textContent = data.error || 'Failed to resend code.';
+          otpError.style.display = 'flex';
+          linkResendOtp.textContent = 'Resend Code';
+        } else {
+          smtpToastText.innerHTML = `📨 Verification email resent! Please check your inbox for <strong>${email}</strong>.`;
+          smtpToast.classList.add('active');
+          startResendCountdown(linkResendOtp);
+        }
+      } catch (err) {
+        otpError.textContent = 'Failed to connect to the server.';
+        otpError.style.display = 'flex';
+        linkResendOtp.textContent = 'Resend Code';
+      }
+    });
+  }
+
+  // Reset Password Resend Click Handler
+  if (linkResendResetOtp) {
+    linkResendResetOtp.addEventListener('click', async () => {
+      if (!pendingReset) return;
+      
+      const { email, username } = pendingReset;
+      resetModalError.style.display = 'none';
+      
+      try {
+        linkResendResetOtp.textContent = 'Sending...';
+        const res = await fetch('/api/otp/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, username, type: 'reset' })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+          showError(resetModalError, data.error || 'Failed to resend code.');
+          linkResendResetOtp.textContent = 'Resend Code';
+        } else {
+          smtpToastText.innerHTML = `📨 Verification email resent! Please check your inbox for <strong>${email}</strong>.`;
+          smtpToast.classList.add('active');
+          startResendCountdown(linkResendResetOtp);
+        }
+      } catch (err) {
+        showError(resetModalError, 'Failed to connect to the server.');
+        linkResendResetOtp.textContent = 'Resend Code';
+      }
+    });
+  }
 });
