@@ -6,9 +6,13 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
+import nodemailer from 'nodemailer';
 
 import * as db from './db.js';
 import { moderateContent } from './moderator.js';
+
+// In-Memory Secure OTP Store (Format: email => { otp, expiresAt })
+const otpStore = new Map();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +47,143 @@ const authenticateToken = async (req, res, next) => {
     res.status(403).json({ error: 'Invalid session token. Please re-login.' });
   }
 };
+
+// --- SECURE BACKEND-DRIVEN OTP ENDPOINTS ---
+
+// Send OTP via Nodemailer (or Simulated fallback)
+app.post('/api/otp/send', async (req, res) => {
+  try {
+    const { email, username, type } = req.body;
+    if (!email || !type) {
+      return res.status(400).json({ error: 'Email and verification type are required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    
+    // Alphanumeric checks on username for registration
+    if (type === 'register') {
+      if (!username) {
+        return res.status(400).json({ error: 'Username is required for registration.' });
+      }
+      const cleanUsername = username.toLowerCase().trim();
+      const existing = await db.getUserByUsername(cleanUsername);
+      if (existing) {
+        return res.status(400).json({ error: 'Username is already taken.' });
+      }
+    }
+
+    // Verify username existence for password resets
+    if (type === 'reset') {
+      if (!username) {
+        return res.status(400).json({ error: 'Username is required for password resets.' });
+      }
+      const cleanUsername = username.toLowerCase().trim();
+      const user = await db.getUserByUsername(cleanUsername);
+      if (!user) {
+        return res.status(400).json({ error: 'Username does not exist.' });
+      }
+    }
+
+    // Generate secure 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Cache in-memory with 5-minute expiration
+    otpStore.set(cleanEmail, {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
+    });
+
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+
+    // Check if real SMTP credentials are set
+    if (emailUser && emailPass) {
+      console.log(`[OTP] Sending real verification email to: ${cleanEmail}`);
+      
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: emailUser,
+          pass: emailPass
+        }
+      });
+
+      const actionText = type === 'register' ? 'activate your AetherCall AI account' : 'reset your AetherCall AI password';
+      const mailOptions = {
+        from: `"AetherCall AI Shield" <${emailUser}>`,
+        to: cleanEmail,
+        subject: `[AetherCall AI] OTP Verification Code: ${otp}`,
+        html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background-color: #090b0f; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+            <div style="text-align: center; margin-bottom: 25px;">
+              <span style="font-size: 2.5rem; font-weight: bold; background: linear-gradient(135deg, #7c3aed, #4f46e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Æ AetherCall AI</span>
+            </div>
+            <h2 style="font-size: 1.4rem; font-weight: 600; text-align: center; margin-bottom: 10px; color: #fff;">Verify Your Identity</h2>
+            <p style="font-size: 0.95rem; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 25px;">
+              Use the secure 6-digit OTP code below to ${actionText}. This code will expire in 5 minutes.
+            </p>
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 15px 25px; text-align: center; font-size: 2.2rem; font-weight: 700; letter-spacing: 6px; color: #fff; margin-bottom: 25px; font-family: monospace;">
+              ${otp}
+            </div>
+            <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
+              If you did not request this verification, please ignore this email safely.
+            </p>
+          </div>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+      res.json({ success: true, simulated: false });
+    } else {
+      // Credentials not set, fall back to Simulated Development Mode
+      console.log(`[OTP-MOCK] Simulated SMTP Relay generated OTP: ${otp} for ${cleanEmail}`);
+      res.json({
+        success: true,
+        simulated: true,
+        otp
+      });
+    }
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate and dispatch OTP.' });
+  }
+});
+
+// Verify OTP
+app.post('/api/otp/verify', (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP code are required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const record = otpStore.get(cleanEmail);
+
+    if (!record) {
+      return res.status(400).json({ error: 'No active OTP verification session found. Request a new code.' });
+    }
+
+    // Check expiration (5 minutes)
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(cleanEmail);
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
+    }
+
+    if (record.otp === otp.trim()) {
+      // Clear OTP on successful validation to prevent duplicate submissions/replays
+      otpStore.delete(cleanEmail);
+      res.json({ success: true, message: 'Identity verified successfully.' });
+    } else {
+      res.status(400).json({ error: 'Invalid verification code. Try again.' });
+    }
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error during verification.' });
+  }
+});
 
 // --- AUTHENTICATION API ENDPOINTS ---
 

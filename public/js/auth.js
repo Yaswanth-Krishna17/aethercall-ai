@@ -169,32 +169,70 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Generate secure 6-digit verification code
-    const generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const submitBtn = registerForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Sign Up';
 
-    // Cache the pending registration fields in memory
-    pendingRegistration = {
-      fullName,
-      email,
-      username,
-      password,
-      code: generatedOTP
-    };
+    try {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Sending Code...';
+      }
 
-    // Trigger SMTP Mailer Toast Notification
-    smtpToastText.innerHTML = `Secure verification code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${generatedOTP.slice(0,3)}-${generatedOTP.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
-    smtpToast.classList.add('active');
+      // Request secure OTP code from backend
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, type: 'register' })
+      });
 
-    // Display Glassmorphic OTP Shield Overlay
-    otpTargetEmail.textContent = email;
-    otpError.style.display = 'none';
-    resetOTPIntensity();
-    otpModal.classList.add('active');
+      const data = await res.json();
 
-    // Trigger initial autofocus in the first OTP cell
-    setTimeout(() => {
-      otpDigits[0].focus();
-    }, 100);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+
+      if (!res.ok) {
+        showError(regError, data.error || 'Failed to dispatch verification code.');
+        return;
+      }
+
+      // Cache the pending registration fields in memory (excluding code)
+      pendingRegistration = {
+        fullName,
+        email,
+        username,
+        password
+      };
+
+      if (data.simulated) {
+        // Trigger SMTP Mailer Toast Notification with simulated OTP code
+        const otpCode = data.otp;
+        smtpToastText.innerHTML = `Secure verification code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${otpCode.slice(0,3)}-${otpCode.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
+      } else {
+        // Real email dispatched successfully
+        smtpToastText.innerHTML = `📨 Verification email sent! Please check your inbox (and spam folder) for <strong>${email}</strong>.`;
+      }
+      smtpToast.classList.add('active');
+
+      // Display Glassmorphic OTP Shield Overlay
+      otpTargetEmail.textContent = email;
+      otpError.style.display = 'none';
+      resetOTPIntensity();
+      otpModal.classList.add('active');
+
+      // Trigger initial autofocus in the first OTP cell
+      setTimeout(() => {
+        otpDigits[0].focus();
+      }, 100);
+
+    } catch (err) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+      showError(regError, 'Failed to connect to the server. Please try again.');
+    }
   });
 
   // --- 6. 6-Digit Auto-Focus Digit Shifting State Machine ---
@@ -259,28 +297,41 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (typedCode !== pendingRegistration.code) {
-      otpError.textContent = 'Incorrect verification code. Please check your simulated SMTP mail relay!';
-      otpError.style.display = 'flex';
-      
-      // Flash red error animation
-      otpDigits.forEach(input => {
-        input.value = '';
-        input.style.borderColor = 'var(--danger)';
-      });
-      setTimeout(() => {
-        otpDigits.forEach(input => input.style.borderColor = '');
-        resetOTPIntensity();
-        otpDigits[0].focus();
-      }, 800);
-      
-      return;
-    }
-
-    // OTP Code Verified successfully, proceed to backend registration save!
-    const { fullName, username, password } = pendingRegistration;
-
     try {
+      btnVerifyOtp.disabled = true;
+      const originalText = btnVerifyOtp.textContent;
+      btnVerifyOtp.textContent = 'Verifying...';
+
+      const verifyRes = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingRegistration.email, otp: typedCode })
+      });
+
+      const verifyData = await verifyRes.json();
+      btnVerifyOtp.disabled = false;
+      btnVerifyOtp.textContent = originalText;
+
+      if (!verifyRes.ok) {
+        otpError.textContent = verifyData.error || 'Incorrect verification code. Please check your simulated SMTP mail relay or email!';
+        otpError.style.display = 'flex';
+
+        // Flash red error animation
+        otpDigits.forEach(input => {
+          input.value = '';
+          input.style.borderColor = 'var(--danger)';
+        });
+        setTimeout(() => {
+          otpDigits.forEach(input => input.style.borderColor = '');
+          resetOTPIntensity();
+          otpDigits[0].focus();
+        }, 800);
+        return;
+      }
+
+      // OTP Code Verified successfully, proceed to backend registration save!
+      const { fullName, username, password } = pendingRegistration;
+
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -309,6 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1800);
       }
     } catch (err) {
+      btnVerifyOtp.disabled = false;
+      btnVerifyOtp.textContent = 'Verify Shield';
       otpError.textContent = 'Server database connection failure. Try again.';
       otpError.style.display = 'flex';
     }
@@ -375,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnCancelReset2.addEventListener('click', closeResetModal);
   btnCancelReset3.addEventListener('click', closeResetModal);
 
-  // Step 1: Submit Username & Email to generate simulated OTP
+  // Step 1: Submit Username & Email to generate OTP
   btnSubmitReset1.addEventListener('click', async () => {
     resetModalError.style.display = 'none';
     const username = document.getElementById('reset-username').value.trim();
@@ -386,20 +439,38 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Verify username first (for basic mock validation)
     try {
-      // In production, we'd verify the username/email pair. We'll simulate verification.
-      // Generate secure 6-digit reset OTP code
-      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      btnSubmitReset1.disabled = true;
+      const originalText = btnSubmitReset1.textContent;
+      btnSubmitReset1.textContent = 'Sending Code...';
+
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, type: 'reset' })
+      });
+
+      const data = await res.json();
+      btnSubmitReset1.disabled = false;
+      btnSubmitReset1.textContent = originalText;
+
+      if (!res.ok) {
+        showError(resetModalError, data.error || 'Failed to send verification code.');
+        return;
+      }
 
       pendingReset = {
         username,
-        email,
-        code: resetCode
+        email
       };
 
-      // Trigger SMTP Mailer Toast
-      smtpToastText.innerHTML = `Password Reset OTP code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${resetCode.slice(0,3)}-${resetCode.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
+      if (data.simulated) {
+        // Trigger SMTP Mailer Toast
+        const resetCode = data.otp;
+        smtpToastText.innerHTML = `Password Reset OTP code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${resetCode.slice(0,3)}-${resetCode.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
+      } else {
+        smtpToastText.innerHTML = `📨 Verification email sent! Please check your inbox (and spam folder) for <strong>${email}</strong>.`;
+      }
       smtpToast.classList.add('active');
 
       // Transition to Step 2
@@ -411,7 +482,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 100);
 
     } catch (err) {
-      showError(resetModalError, 'Database lookup failed.');
+      btnSubmitReset1.disabled = false;
+      btnSubmitReset1.textContent = 'Send OTP';
+      showError(resetModalError, 'Failed to connect to the server. Try again.');
     }
   });
 
@@ -452,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Step 2: Verify OTP code
-  btnVerifyResetOtp.addEventListener('click', () => {
+  btnVerifyResetOtp.addEventListener('click', async () => {
     resetModalError.style.display = 'none';
     if (!pendingReset) return;
 
@@ -464,26 +537,46 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (typedCode !== pendingReset.code) {
-      showError(resetModalError, 'Incorrect verification code. Please check your simulated SMTP mail relay!');
-      
-      // Flash red error effect
-      resetOtpDigits.forEach(input => {
-        input.value = '';
-        input.style.borderColor = 'var(--danger)';
-      });
-      setTimeout(() => {
-        resetOtpDigits.forEach(input => input.style.borderColor = '');
-        resetResetOtpDigits();
-        resetOtpDigits[0].focus();
-      }, 800);
-      return;
-    }
+    try {
+      btnVerifyResetOtp.disabled = true;
+      const originalText = btnVerifyResetOtp.textContent;
+      btnVerifyResetOtp.textContent = 'Verifying...';
 
-    // OTP matches! Hide SMTP toast and transition to Step 3
-    smtpToast.classList.remove('active');
-    resetStep2.classList.remove('active');
-    resetStep3.classList.add('active');
+      const res = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingReset.email, otp: typedCode })
+      });
+
+      const data = await res.json();
+      btnVerifyResetOtp.disabled = false;
+      btnVerifyResetOtp.textContent = originalText;
+
+      if (!res.ok) {
+        showError(resetModalError, data.error || 'Incorrect verification code. Please check your simulated SMTP mail relay or email!');
+        
+        // Flash red error effect
+        resetOtpDigits.forEach(input => {
+          input.value = '';
+          input.style.borderColor = 'var(--danger)';
+        });
+        setTimeout(() => {
+          resetOtpDigits.forEach(input => input.style.borderColor = '');
+          resetResetOtpDigits();
+          resetOtpDigits[0].focus();
+        }, 800);
+        return;
+      }
+
+      // OTP matches! Hide SMTP toast and transition to Step 3
+      smtpToast.classList.remove('active');
+      resetStep2.classList.remove('active');
+      resetStep3.classList.add('active');
+    } catch (err) {
+      btnVerifyResetOtp.disabled = false;
+      btnVerifyResetOtp.textContent = 'Verify OTP';
+      showError(resetModalError, 'Server connection error during verification. Try again.');
+    }
   });
 
   // Step 3: Save new password to database
