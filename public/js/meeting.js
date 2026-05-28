@@ -91,6 +91,13 @@ document.addEventListener('DOMContentLoaded', () => {
       localName.textContent = `${currentUser.fullName} ${meetingDetails.host === currentUser.username ? '(Host)' : ''}`;
       localAvatar.textContent = currentUser.fullName.charAt(0).toUpperCase();
 
+      // Only allow the host to see their own local focus score
+      const isHost = meetingDetails.host === currentUser.username;
+      if (!isHost) {
+        const localTelemetry = document.getElementById('local-telemetry');
+        if (localTelemetry) localTelemetry.style.display = 'none';
+      }
+
       // Setup device media streams
       await setupLocalMedia();
 
@@ -292,12 +299,12 @@ document.addEventListener('DOMContentLoaded', () => {
           hostAvgFocus.className = 'analytics-metric';
           engagementAlert.classList.remove('active');
         }
-      }
 
-      // EVERYONE (Host and Participants) updates remote peer labels!
-      peerScores.forEach(peerScore => {
-        updateRemotePeerTelemetryLabels(peerScore);
-      });
+        // Apply visual telemetry frames to remote student overlays in the grid (Host only)
+        peerScores.forEach(peerScore => {
+          updateRemotePeerTelemetryLabels(peerScore);
+        });
+      }
     });
 
     // Handle Kicked eviction
@@ -419,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="video-overlay">
         <div class="peer-name-container">
           <span class="peer-name">@${escapeHTML(username)}</span>
-          <span id="telemetry-${socketId}" class="peer-telemetry-badge telemetry-focus">🔍 AI Focus: 100%</span>
+          <span id="telemetry-${socketId}" class="peer-telemetry-badge telemetry-focus" style="${meetingDetails.host === currentUser.username ? '' : 'display: none;'}">🔍 AI Focus: 100%</span>
         </div>
       </div>
     `;
