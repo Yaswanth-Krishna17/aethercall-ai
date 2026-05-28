@@ -109,3 +109,15 @@ export async function updateUserPassword(username, newPasswordHash) {
   }
   return false;
 }
+
+// Update meeting invitees list
+export async function updateMeetingInvitees(id, invitees) {
+  const db = await readDB();
+  const meeting = db.meetings.find(m => m.id === id);
+  if (meeting) {
+    meeting.invitees = invitees.map(i => i.toLowerCase().trim());
+    await writeDB(db);
+    return meeting;
+  }
+  return null;
+}

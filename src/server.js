@@ -272,6 +272,70 @@ app.get('/api/meetings/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Update meeting invitees list (Host only)
+app.post('/api/meetings/:id/invitees', authenticateToken, async (req, res) => {
+  try {
+    const { invitees } = req.body;
+    if (!invitees || !Array.isArray(invitees)) {
+      return res.status(400).json({ error: 'Invitees list must be an array.' });
+    }
+
+    const meeting = await db.getMeeting(req.params.id);
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found.' });
+    }
+
+    // Only host is allowed to modify invitees
+    if (meeting.host !== req.user.username) {
+      return res.status(403).json({ error: 'Unauthorized. Only the host can manage participants.' });
+    }
+
+    const host = meeting.host;
+    
+    // Filter invitees
+    const cleanInvitees = invitees
+      .map(i => i.trim().toLowerCase())
+      .filter(i => i && i !== host);
+
+    // Verify all invited usernames exist in Database
+    const invalidUsers = [];
+    for (const username of cleanInvitees) {
+      const exists = await db.getUserByUsername(username);
+      if (!exists) invalidUsers.push(username);
+    }
+
+    if (invalidUsers.length > 0) {
+      return res.status(400).json({ error: `The following users do not exist: ${invalidUsers.join(', ')}` });
+    }
+
+    // Identify newly added invitees to notify them live via WebSockets
+    const newlyAdded = cleanInvitees.filter(i => !meeting.invitees.includes(i));
+
+    // Update meeting invitees in DB
+    const updatedMeeting = await db.updateMeetingInvitees(req.params.id, cleanInvitees);
+
+    // Notify newly added invitees who are currently online!
+    newlyAdded.forEach(invitee => {
+      const sockets = activeSockets.get(invitee);
+      if (sockets && sockets.length > 0) {
+        sockets.forEach(sid => {
+          io.to(sid).emit('meeting-invite', {
+            meetingId: meeting.id,
+            title: meeting.title,
+            host: req.user.fullName,
+            hostUsername: host
+          });
+        });
+      }
+    });
+
+    res.json(updatedMeeting);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update invitees list.' });
+  }
+});
+
 // Fallback HTML page loading routing (SPA experience support)
 app.get('*', (req, res, next) => {
   // If request is for an API endpoint, skip static HTML routing fallback
