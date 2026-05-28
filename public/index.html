@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Secure, AI-powered next-generation video conferencing application with automated real-time text/speech content moderation, unique linkless invitation mechanisms, and smart attention analysis tracking.">
+  <title>AetherCall AI - Next Generation AI Video Conferencing</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f1015">
+  <!-- iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AetherCall">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+
+  <main class="auth-container">
+    <section class="auth-panel glass-panel fadeIn">
+      
+      <div class="auth-header">
+        <div class="logo-section" style="justify-content: center; margin-bottom: 15px;">
+          <div class="logo-icon">Æ</div>
+          <span style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em;">AetherCall AI</span>
+        </div>
+        <h1>Next-Gen AI Meetings</h1>
+        <p>Intelligent, Linkless, Secure</p>
+      </div>
+
+      <div class="auth-tabs" role="tablist">
+        <button id="tab-login" class="auth-tab-btn active" role="tab" aria-selected="true">Sign In</button>
+        <button id="tab-register" class="auth-tab-btn" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <!-- Sign In Form Box -->
+      <div id="login-container" class="auth-form-container active">
+        <form id="login-form">
+          <div class="form-group">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" placeholder="e.g. lucky" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          
+          <div id="login-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; border-radius: 8px;"></div>
+          
+          <button type="submit" id="btn-login-submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+
+          <!-- Advanced simulated Google Auth button -->
+          <div class="google-separator">or</div>
+          <button type="button" id="btn-google-login" class="btn btn-google">
+            <svg class="google-icon-svg" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.336 0 3.336 2.69 1.336 6.618l3.93 3.147z"/>
+              <path fill="#4285F4" d="M23.49 12.273c0-.818-.082-1.609-.218-2.373H12v4.582h6.482c-.282 1.482-1.118 2.727-2.382 3.573l3.709 2.873c2.164-2 3.682-4.945 3.682-8.655z"/>
+              <path fill="#FBBC05" d="M5.266 14.235A7.018 7.018 0 0 1 4.909 12c0-.79.136-1.545.357-2.235L1.336 6.618A11.93 11.93 0 0 0 0 12c0 1.927.455 3.736 1.255 5.382l4.01-3.147z"/>
+              <path fill="#34A853" d="M12 24c3.245 0 5.973-1.073 7.964-2.918l-3.709-2.873c-1.027.69-2.345 1.109-4.255 1.109-3.273 0-6.055-2.209-7.045-5.182L1.255 17.38C3.255 21.31 7.255 24 12 24z"/>
+            </svg>
+            Sign In with Google
+          </button>
+        </form>
+      </div>
+
+      <!-- Sign Up Form Box -->
+      <div id="register-container" class="auth-form-container">
+        <form id="register-form">
+          <div class="form-group">
+            <label for="reg-fullname">Full Name</label>
+            <input type="text" id="reg-fullname" placeholder="e.g. Yaswanth Krishna" required autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="reg-email">Email Address</label>
+            <input type="email" id="reg-email" placeholder="e.g. yaswanth@gmail.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="reg-username">Choose Username</label>
+            <input type="text" id="reg-username" placeholder="Letters & numbers only" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Password</label>
+            <input type="password" id="reg-password" placeholder="Min. 6 characters" required autocomplete="new-password">
+          </div>
+
+          <div id="reg-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; border-radius: 8px;"></div>
+          <div id="reg-success" class="peer-telemetry-badge telemetry-focus" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; border-radius: 8px;"></div>
+
+          <button type="submit" id="btn-register-submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+        </form>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Simulated SMTP Server Notification Toast -->
+  <div id="smtp-toast" class="smtp-toast-banner" role="alert">
+    <span class="smtp-icon">📨</span>
+    <div style="flex: 1;">
+      <strong style="display: block; font-size: 0.92rem; color: #3b82f6; font-family: 'Outfit';">Simulated SMTP Mail Relay</strong>
+      <span id="smtp-toast-text" style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; display: block; margin-top: 4px;">
+        Generating secure OTP code...
+      </span>
+    </div>
+  </div>
+
+  <!-- Glassmorphic OTP Shield Overlay -->
+  <div id="otp-modal" class="otp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="otp-title">
+    <div class="otp-modal-content glass-panel">
+      <div class="invite-icon" style="background: linear-gradient(135deg, var(--success), #047857);">🔑</div>
+      <h2 id="otp-title" style="font-size: 1.4rem; margin-bottom: 8px;">Verify Your Email</h2>
+      <p id="otp-description" style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; padding: 0 10px;">
+        We have sent a secure 6-digit OTP code to <strong id="otp-target-email" style="color: #fff;">user@email.com</strong>. Enter it below to activate your account.
+      </p>
+      
+      <div class="otp-inputs-grid">
+        <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+        <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+        <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+        <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+        <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+        <input type="text" class="otp-input-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+      </div>
+
+      <div id="otp-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; border-radius: 8px;">
+        Incorrect code. Please check your simulated SMTP mail relay!
+      </div>
+
+      <div style="display: flex; gap: 15px; margin-top: 10px;">
+        <button id="btn-cancel-otp" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+        <button id="btn-verify-otp" class="btn btn-primary" style="flex: 1; background: linear-gradient(135deg, var(--success), #047857); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">Verify OTP</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered!', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

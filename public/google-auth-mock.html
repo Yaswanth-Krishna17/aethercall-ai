@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in - Google Accounts</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      background: #0f1015;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .google-panel {
+      width: 100%;
+      max-width: 420px;
+      padding: 35px;
+      border-radius: 12px;
+      background: #181920;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+    .google-logo {
+      display: flex;
+      justify-content: center;
+      gap: 3px;
+      font-weight: 700;
+      font-size: 1.8rem;
+      margin-bottom: 25px;
+      font-family: 'Outfit';
+    }
+    .account-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.01);
+      margin-bottom: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+    .account-row:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    .account-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: #fff;
+    }
+    .account-details {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .account-name {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #fff;
+    }
+    .account-email {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .loader {
+      display: none;
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.08);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      margin: 20px auto 0;
+      animation: spin 1s infinite linear;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="google-panel">
+    
+    <!-- Standard Google multi-color Branding -->
+    <div class="google-logo">
+      <span style="color: #4285F4;">G</span>
+      <span style="color: #EA4335;">o</span>
+      <span style="color: #FBBC05;">o</span>
+      <span style="color: #4285F4;">g</span>
+      <span style="color: #34A853;">l</span>
+      <span style="color: #EA4335;">e</span>
+    </div>
+
+    <h1 style="font-size: 1.35rem; font-weight: 600; margin-bottom: 8px; color: #fff;">Choose an account</h1>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px;">to continue to <strong>AetherCall AI</strong></p>
+
+    <div id="accounts-list">
+      
+      <!-- Option 1: Yaswanth Krishna -->
+      <div class="account-row" onclick="selectGoogleAccount('Yaswanth Krishna', 'yaswanth@gmail.com')">
+        <div class="account-avatar" style="background: linear-gradient(135deg, #10b981, #059669);">Y</div>
+        <div class="account-details">
+          <span class="account-name">Yaswanth Krishna</span>
+          <span class="account-email">yaswanth@gmail.com</span>
+        </div>
+      </div>
+
+      <!-- Option 2: Lucky Sharma -->
+      <div class="account-row" onclick="selectGoogleAccount('Lucky Sharma', 'lucky@gmail.com')">
+        <div class="account-avatar" style="background: linear-gradient(135deg, #7c3aed, #4f46e5);">L</div>
+        <div class="account-details">
+          <span class="account-name">Lucky Sharma</span>
+          <span class="account-email">lucky@gmail.com</span>
+        </div>
+      </div>
+
+      <!-- Option 3: Guest Account Creator -->
+      <div class="account-row" id="row-custom" onclick="toggleCustomForm()">
+        <div class="account-avatar" style="background: rgba(255, 255, 255, 0.05); color: var(--text-muted);">👤</div>
+        <div class="account-details">
+          <span class="account-name">Use another account</span>
+          <span class="account-email">Sign in with a different Gmail</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Custom Account Input Form -->
+    <form id="custom-account-form" style="display: none; text-align: left; margin-top: 15px;" onsubmit="handleCustomSubmit(event)">
+      <div class="form-group">
+        <label for="custom-name">Full Name</label>
+        <input type="text" id="custom-name" placeholder="e.g. John Doe" required>
+      </div>
+      <div class="form-group">
+        <label for="custom-email">Google Email Address</label>
+        <input type="email" id="custom-email" placeholder="e.g. johndoe@gmail.com" required>
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="toggleCustomForm()" style="flex: 1; padding: 10px;">Back</button>
+        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 10px;">Sign In</button>
+      </div>
+    </form>
+
+    <div id="loader" class="loader"></div>
+
+  </main>
+
+  <script>
+    function selectGoogleAccount(fullName, email) {
+      document.getElementById('accounts-list').style.opacity = '0.3';
+      document.getElementById('accounts-list').style.pointerEvents = 'none';
+      document.getElementById('loader').style.display = 'block';
+
+      // Send the account payload to the parent window
+      setTimeout(() => {
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'google-login-success',
+            fullName: fullName,
+            email: email
+          }, '*');
+        }
+        window.close();
+      }, 1000);
+    }
+
+    function toggleCustomForm() {
+      const list = document.getElementById('accounts-list');
+      const form = document.getElementById('custom-account-form');
+      if (form.style.display === 'none') {
+        list.style.display = 'none';
+        form.style.display = 'block';
+      } else {
+        list.style.display = 'block';
+        form.style.display = 'none';
+      }
+    }
+
+    function handleCustomSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('custom-name').value.trim();
+      const email = document.getElementById('custom-email').value.trim();
+      
+      if (!email.toLowerCase().endsWith('@gmail.com')) {
+        alert('Please enter a valid Google email address (@gmail.com)');
+        return;
+      }
+      
+      document.getElementById('custom-account-form').style.display = 'none';
+      document.getElementById('loader').style.display = 'block';
+      
+      selectGoogleAccount(name, email);
+    }
+  </script>
+</body>
+</html>

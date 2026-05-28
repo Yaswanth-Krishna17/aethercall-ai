@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Secure account-based meeting scheduler and real-time live video dashboard for AetherCall AI, featuring direct app-to-app invitation pushes with zero browser link exposures.">
+  <title>Dashboard - AetherCall AI</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f1015">
+  <!-- iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AetherCall">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+
+  <main class="dashboard-layout">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar glass-panel" aria-label="Sidebar navigation">
+      <div class="logo-section">
+        <div class="logo-icon">Æ</div>
+        <span style="font-size: 1.3rem; font-weight: 700;">AetherCall AI</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a id="nav-dash" class="nav-item active" role="link">
+          <span>🏠</span> Dashboard
+        </a>
+        <a id="nav-schedule" class="nav-item" role="link">
+          <span>📅</span> Schedule Call
+        </a>
+        <a id="btn-logout" class="nav-item" style="color: var(--danger);" role="link">
+          <span>🚪</span> Logout
+        </a>
+      </nav>
+
+      <!-- Authenticated User Profile Summary Widget -->
+      <section class="user-profile-widget" aria-label="User profile summary">
+        <div id="user-avatar" class="avatar">U</div>
+        <div class="user-info">
+          <span id="user-display-name" class="user-name">Loading Profile...</span>
+          <span id="user-handle" class="user-tag">@loading</span>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Main Dynamic Section -->
+    <section class="main-content">
+      
+      <header class="content-header">
+        <div>
+          <h1 id="welcome-message" style="font-size: 2rem;">Welcome back!</h1>
+          <p style="color: var(--text-muted); margin-top: 4px;">Secure App-to-App Signaling Network</p>
+        </div>
+        <div class="peer-telemetry-badge telemetry-focus" id="live-indicator">
+          <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; display: inline-block;"></span>
+          Network Secured
+        </div>
+      </header>
+
+      <div class="dashboard-grid">
+        
+        <!-- Left Area: Scheduling Form & Meeting List -->
+        <div style="display: flex; flex-direction: column; gap: 30px;">
+          
+          <!-- Scheduling Card -->
+          <section id="scheduler-card" class="glass-panel" style="padding: 30px;" aria-labelledby="schedule-heading">
+            <h2 id="schedule-heading" style="margin-bottom: 20px; font-size: 1.35rem; display: flex; align-items: center; gap: 10px;">
+              <span>🚀</span> Start a Linkless Meeting
+            </h2>
+            
+            <form id="create-meeting-form">
+              <div class="form-group">
+                <label for="meet-title">Meeting Title</label>
+                <input type="text" id="meet-title" placeholder="e.g. Machine Learning Colloquium" required>
+              </div>
+              <div class="form-group">
+                <label for="meet-invitees">Invite Participants (by Username)</label>
+                <input type="text" id="meet-invitees" placeholder="Comma separated usernames (e.g. lucky, alex, emma)" required>
+                <span style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                  Users must be registered. A live notification will be pushed straight to their active dashboard for instant access.
+                </span>
+              </div>
+              
+              <div id="scheduler-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; justify-content: center; padding: 10px; margin-bottom: 20px; border-radius: 8px;"></div>
+              <div id="scheduler-success" class="peer-telemetry-badge telemetry-focus" style="display: none; justify-content: center; padding: 10px; margin-bottom: 20px; border-radius: 8px;"></div>
+
+              <button type="submit" id="btn-scheduler-submit" class="btn btn-primary">Create & Send Invites</button>
+            </form>
+          </section>
+
+          <!-- Meeting Log Card -->
+          <section class="glass-panel" style="padding: 30px;" aria-labelledby="meetings-heading">
+            <h2 id="meetings-heading" style="font-size: 1.35rem;">Your Scheduled Meetings</h2>
+            <div id="meetings-container" class="meeting-list">
+              <!-- Dynamically populated rows -->
+              <p style="color: var(--text-muted);">Fetching your scheduled sessions...</p>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- Right Sidebar Area: Security Diagnostics & Platform Info -->
+        <aside style="display: flex; flex-direction: column; gap: 30px;" aria-label="Security Diagnostics">
+          
+          <div class="glass-panel" style="padding: 30px;">
+            <h3 style="margin-bottom: 15px; font-size: 1.15rem; color: var(--text-main);">🛡️ Zero-Link Security</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 12px;">
+              AetherCall operates with zero meeting URLs. By inviting users directly through registered usernames, uninvited crashers cannot join meetings.
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.6;">
+              Authentication cookies are fully encrypted (HTTP-only) preventing session hijacks and man-in-the-middle exploits.
+            </p>
+          </div>
+
+          <div class="glass-panel" style="padding: 30px;">
+            <h3 style="margin-bottom: 15px; font-size: 1.15rem; color: var(--text-main);">🤖 Core AI Services</h3>
+            <ul style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.8; padding-left: 20px;">
+              <li><strong>Google MediaPipe</strong>: Real-time eye, head pose, and drowsiness analysis done locally in the browser.</li>
+              <li><strong>Content Censoring</strong>: Automated dictionary, wildcard, and leet-speak checks on chat inputs.</li>
+              <li><strong>Voice Moderation</strong>: Automatic, low-latency browser-level Speech-to-Text with active verbal swearing detection.</li>
+            </ul>
+          </div>
+
+        </aside>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Real-time Live Linkless Invitation Modal Overlay -->
+  <div id="invite-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content glass-panel">
+      <div class="invite-icon">📞</div>
+      <h2 id="modal-title" style="font-size: 1.4rem; margin-bottom: 10px;">Incoming Meeting Invite</h2>
+      <p id="invite-details" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
+        <strong>Host Name</strong> is inviting you to join <strong>"Meeting Name"</strong>.
+      </p>
+      <div class="modal-actions">
+        <button id="btn-decline-invite" class="btn btn-secondary">Decline</button>
+        <button id="btn-accept-invite" class="btn btn-primary">Accept & Join</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WebSocket + Logic scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered!', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

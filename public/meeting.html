@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-Powered immersive active video conference call environment featuring multi-peer WebRTC, real-time Socket.io text/speech filters, and Google MediaPipe gaze diagnostics.">
+  <title>Active Session - AetherCall AI</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f1015">
+  <!-- iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AetherCall">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  
+  <!-- MediaPipe Face Mesh + Camera CDN Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <main class="meeting-layout">
+    
+    <!-- Left Section: Interactive Grid & Peer Videos -->
+    <section class="conference-area" aria-label="Video conference area">
+      
+      <!-- Host Engagement Warning Toast Overlay -->
+      <div id="engagement-alert" class="engagement-warning-banner" role="alert">
+        <span class="warning-icon">⚠️</span>
+        <div class="warning-msg">
+          <strong style="display: block; font-size: 1.05rem; color: var(--danger);">Engagement Warning Alert</strong>
+          <span id="engagement-alert-text">Average audience attention has dropped below 50%!</span>
+        </div>
+      </div>
+
+      <!-- Header details bar -->
+      <header class="meeting-header-bar">
+        <div>
+          <h2 id="room-title" style="font-size: 1.4rem;">Connecting to call...</h2>
+          <p id="room-id-sub" style="color: var(--text-muted); font-size: 0.82rem; margin-top: 2px;">Securing peer connection lobby</p>
+        </div>
+        
+        <!-- Live Analytics Stats Card overlay for the Host -->
+        <div id="host-stats" class="glass-panel host-analytics-overlay" style="display: none;">
+          <div class="analytics-title">Audience Focus</div>
+          <div id="host-avg-focus" class="analytics-metric">100%</div>
+          <div id="host-student-count" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">0 Students Active</div>
+        </div>
+      </header>
+
+      <!-- Grid Matrix showing Active Camera Feeds -->
+      <div id="video-grid" class="video-grid">
+        <!-- Self video frame -->
+        <div id="local-video-container" class="video-wrapper">
+          <video id="local-video" autoplay playsinline muted></video>
+          <canvas id="local-mesh-canvas" class="mesh-canvas"></canvas>
+          
+          <div id="local-placeholder" class="video-placeholder" style="display: none;">
+            <div id="local-avatar" class="avatar">M</div>
+            <span style="font-size: 0.88rem; color: var(--text-muted);">Your camera is off</span>
+          </div>
+
+          <div class="video-overlay">
+            <div class="peer-name-container">
+              <span id="local-name" class="peer-name">You (Host)</span>
+              <span id="local-telemetry" class="peer-telemetry-badge telemetry-focus">🔍 AI Focus: 100%</span>
+            </div>
+            <div class="peer-actions-overlay">
+              <div class="peer-overlay-btn" title="Mic Status" id="indicator-local-mic">🎤</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden Local Video element for Local Processing when camera is off -->
+      <video id="hidden-video-capture" class="hidden-video-capture" autoplay playsinline muted></video>
+
+      <!-- System Warnings Floating Notification -->
+      <div id="moderation-toast" class="engagement-warning-banner" style="background: rgba(245, 158, 11, 0.15); border-color: var(--warning); box-shadow: 0 0 25px rgba(245, 158, 11, 0.3); bottom: 100px; top: auto; z-index: 100;" role="alert">
+        <span class="warning-icon" style="color: var(--warning);">⚠️</span>
+        <div class="warning-msg">
+          <strong style="display: block; font-size: 1.05rem; color: var(--warning);">Security Warn</strong>
+          <span id="moderation-toast-text">Abusive language warnings.</span>
+        </div>
+      </div>
+
+      <!-- Bottom Audio, Video, and STT controls -->
+      <nav class="call-controls-bar" aria-label="Conference controls">
+        <button id="btn-toggle-mic" class="control-btn" title="Mute Microphone" aria-label="Toggle Microphone">🎙️</button>
+        <button id="btn-toggle-cam" class="control-btn" title="Mute Camera" aria-label="Toggle Camera">📹</button>
+        <button id="btn-toggle-stt" class="control-btn" title="Toggle Real-Time speech text moderation" aria-label="Toggle Speech Moderation">🗣️</button>
+        <button id="btn-end-call" class="control-btn btn-danger active-off" style="margin-left: 20px;" title="Leave Call" aria-label="End call and exit">📴</button>
+      </nav>
+
+    </section>
+
+    <!-- Right Section: Real-time Interactive Chat Column -->
+    <aside class="chat-side-panel" aria-label="Meeting Chat and Details">
+      
+      <header class="chat-header">
+        <span style="font-size: 1.25rem;">💬</span>
+        <div>
+          <h3 style="font-size: 1.05rem;">Meeting Room Chat</h3>
+          <span id="chat-participant-indicator" style="font-size: 0.78rem; color: var(--text-muted);">1 User in chat</span>
+        </div>
+      </header>
+
+      <!-- Scrollable Message list -->
+      <div id="chat-messages" class="chat-history">
+        <div class="chat-bubble" style="max-width: 100%;">
+          <div class="chat-body" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.8rem; text-align: center; border-radius: 8px;">
+            🔒 End-to-end room signaling and real-time AI moderation networks are active.
+          </div>
+        </div>
+      </div>
+
+      <!-- Message input block -->
+      <footer class="chat-input-bar">
+        <form id="chat-submit-form" style="display: flex; width: 100%; gap: 10px;">
+          <input type="text" id="chat-input-field" placeholder="Send a secure message..." autocomplete="off" required>
+          <button type="submit" id="btn-chat-send" class="btn btn-primary" style="padding: 10px 18px; border-radius: 10px;">Send</button>
+        </form>
+      </footer>
+
+    </aside>
+
+  </main>
+
+  <!-- Load WebRTC Signaling + Speech Recognition + Focus Logic -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/focus.js"></script>
+  <script src="js/meeting.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered!', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "ai-video-conference",
+  "version": "1.0.0",
+  "description": "AI-Powered Video Conferencing Application with WebRTC, Socket.io, MediaPipe Focus Tracking, and Real-time Moderation.",
+  "main": "electron-main.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "electron": "electron .",
+    "pack-win": "electron-packager . ai-video-conference --platform=win32 --arch=x64 --out=dist --overwrite"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "electron": "^30.0.1",
+    "electron-packager": "^17.1.2"
+  }
+}
