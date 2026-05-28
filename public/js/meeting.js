@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showSecurityWarnToast(`Strike ${strikes}/3 warning: ${reason}`);
     });
 
-    // Host telemetry aggregates
+    // Host telemetry aggregates & Remote peer telemetry labels
     socket.on('focus-analytics-update', ({ averageFocus, participantCount, peerScores }) => {
       if (meetingDetails.host === currentUser.username) {
         // Make analytics widget visible
@@ -292,12 +292,12 @@ document.addEventListener('DOMContentLoaded', () => {
           hostAvgFocus.className = 'analytics-metric';
           engagementAlert.classList.remove('active');
         }
-
-        // Apply visual telemetry frames to remote student overlays in the grid
-        peerScores.forEach(peerScore => {
-          updateRemotePeerTelemetryLabels(peerScore);
-        });
       }
+
+      // EVERYONE (Host and Participants) updates remote peer labels!
+      peerScores.forEach(peerScore => {
+        updateRemotePeerTelemetryLabels(peerScore);
+      });
     });
 
     // Handle Kicked eviction
@@ -570,6 +570,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCollapsed = chatSidePanel.classList.toggle('collapsed');
     btnToggleChat.className = isCollapsed ? 'control-btn active-off' : 'control-btn';
   });
+
+  // On mobile viewports, collapse the chat sidebar by default
+  if (window.innerWidth <= 768) {
+    chatSidePanel.classList.add('collapsed');
+    btnToggleChat.className = 'control-btn active-off';
+  } else {
+    btnToggleChat.className = 'control-btn';
+  }
 
   // Disconnect button
   btnEndCall.addEventListener('click', () => {

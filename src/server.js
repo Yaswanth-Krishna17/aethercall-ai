@@ -468,18 +468,15 @@ io.on('connection', (socket) => {
     if (participantCount > 0) {
       const averageFocus = Math.round(totalScore / participantCount);
 
-      // Distribute statistical tracking payload to Host's active socket
-      const hostSockets = activeSockets.get(room.host) || [];
-      hostSockets.forEach(hsid => {
-        io.to(hsid).emit('focus-analytics-update', {
-          averageFocus,
-          participantCount,
-          peerScores: Array.from(room.participants.entries()).map(([sid, data]) => ({
-            username: data.username,
-            score: data.focusScore,
-            strikes: data.strikes
-          }))
-        });
+      // Broadcast real-time focus statistical tracking payload to everyone in the room!
+      io.to(activeMeetingId).emit('focus-analytics-update', {
+        averageFocus,
+        participantCount,
+        peerScores: Array.from(room.participants.entries()).map(([sid, data]) => ({
+          username: data.username,
+          score: data.focusScore,
+          strikes: data.strikes
+        }))
       });
     }
   });

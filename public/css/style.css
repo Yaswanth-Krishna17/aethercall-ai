@@ -994,3 +994,72 @@ input:focus, select:focus, textarea:focus {
   50% { transform: scale(1.1); filter: drop-shadow(0 0 6px #3b82f6); }
   100% { transform: scale(1); }
 }
+
+/* --- MOBILE RESPONSIVE UPGRADE (ZOOM-STYLE) --- */
+@media (max-width: 768px) {
+  .meeting-layout {
+    flex-direction: column;
+    position: relative;
+  }
+  
+  .chat-side-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: calc(100% - 70px);
+    z-index: 100;
+    border-left: none;
+    border-bottom: 1px solid var(--glass-border);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(0);
+  }
+  
+  .chat-side-panel.collapsed {
+    transform: translateX(100%);
+    width: 100%;
+  }
+  
+  .conference-area {
+    padding: 10px;
+    height: 100%;
+    width: 100%;
+  }
+  
+  .video-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    max-height: calc(100vh - 100px);
+    padding: 5px;
+  }
+
+  .video-wrapper {
+    border-radius: 12px;
+  }
+
+  .video-placeholder .avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+  
+  .call-controls-bar {
+    height: 70px;
+    padding: 5px 10px;
+    gap: 10px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 10;
+    flex-shrink: 0;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(6, 8, 12, 0.98);
+  }
+  
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.05rem;
+  }
+}
