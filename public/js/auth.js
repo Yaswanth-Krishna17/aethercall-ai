@@ -329,6 +329,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // OTP Code Verified successfully, proceed to backend registration save!
       const { fullName, username, password, email } = pendingRegistration;
 
+      // Guard: ensure all fields are present before calling register
+      if (!fullName || !username || !password || !email) {
+        otpError.textContent = 'Registration session expired. Please go back and fill the form again.';
+        otpError.style.display = 'flex';
+        return;
+      }
+
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
