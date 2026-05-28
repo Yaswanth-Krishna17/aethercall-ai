@@ -97,3 +97,15 @@ export async function getUserMeetings(username) {
   const lowerUser = username.toLowerCase().trim();
   return db.meetings.filter(m => m.host === lowerUser || m.invitees.includes(lowerUser));
 }
+
+// Update a user's password
+export async function updateUserPassword(username, newPasswordHash) {
+  const db = await readDB();
+  const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase().trim());
+  if (user) {
+    user.passwordHash = newPasswordHash;
+    await writeDB(db);
+    return true;
+  }
+  return false;
+}

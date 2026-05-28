@@ -45,6 +45,10 @@
             <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
           </div>
           
+          <div style="text-align: right; margin-bottom: 18px;">
+            <a href="#" id="link-forgot-password" style="font-size: 0.8rem; color: var(--accent-primary); text-decoration: none; font-weight: 500; transition: color 0.2s ease;">Forgot Password?</a>
+          </div>
+          
           <div id="login-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; border-radius: 8px;"></div>
           
           <button type="submit" id="btn-login-submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
@@ -130,6 +134,72 @@
         <button id="btn-cancel-otp" class="btn btn-secondary" style="flex: 1;">Cancel</button>
         <button id="btn-verify-otp" class="btn btn-primary" style="flex: 1; background: linear-gradient(135deg, var(--success), #047857); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">Verify OTP</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Glassmorphic Forgot Password / Reset Password Overlay -->
+  <div id="reset-modal" class="otp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title">
+    <div class="otp-modal-content glass-panel" style="max-width: 440px;">
+      <div class="invite-icon" style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));">🛡️</div>
+      <h2 id="reset-modal-title" style="font-size: 1.4rem; margin-bottom: 8px;">Reset Password</h2>
+      <p id="reset-modal-desc" style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 20px; padding: 0 10px;">
+        To recover your account, enter your username and registered email address to receive a secure OTP code.
+      </p>
+
+      <!-- Step 1: Username & Email Fields -->
+      <div id="reset-step-1" class="auth-form-container active" style="text-align: left;">
+        <div class="form-group">
+          <label for="reset-username">Username</label>
+          <input type="text" id="reset-username" placeholder="Enter your username" required>
+        </div>
+        <div class="form-group">
+          <label for="reset-email">Registered Email</label>
+          <input type="email" id="reset-email" placeholder="e.g. lucky@gmail.com" required>
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 20px;">
+          <button type="button" id="btn-cancel-reset-1" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+          <button type="button" id="btn-submit-reset-1" class="btn btn-primary" style="flex: 1;">Send Reset OTP</button>
+        </div>
+      </div>
+
+      <!-- Step 2: 6-Digit OTP Cells -->
+      <div id="reset-step-2" class="auth-form-container" style="text-align: center;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+          Enter the 6-digit OTP code below:
+        </p>
+        <div class="otp-inputs-grid">
+          <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+          <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+          <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+          <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+          <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+          <input type="text" class="reset-otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" required disabled>
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+          <button type="button" id="btn-cancel-reset-2" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+          <button type="button" id="btn-verify-reset-otp" class="btn btn-primary" style="flex: 1;">Verify OTP</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Input New Password -->
+      <div id="reset-step-3" class="auth-form-container" style="text-align: left;">
+        <div class="form-group">
+          <label for="reset-new-password">Choose New Password</label>
+          <input type="password" id="reset-new-password" placeholder="Min. 6 characters" required>
+        </div>
+        <div class="form-group">
+          <label for="reset-confirm-password">Confirm New Password</label>
+          <input type="password" id="reset-confirm-password" placeholder="Re-enter new password" required>
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+          <button type="button" id="btn-cancel-reset-3" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+          <button type="button" id="btn-submit-new-password" class="btn btn-primary" style="flex: 1; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));">Reset Password</button>
+        </div>
+      </div>
+
+      <div id="reset-modal-error" class="peer-telemetry-badge telemetry-drowsy" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-top: 20px; font-size: 0.85rem; border-radius: 8px;"></div>
+      <div id="reset-modal-success" class="peer-telemetry-badge telemetry-focus" style="display: none; width: 100%; justify-content: center; padding: 10px; margin-top: 20px; font-size: 0.85rem; border-radius: 8px;"></div>
+
     </div>
   </div>
 

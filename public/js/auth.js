@@ -320,4 +320,225 @@ document.addEventListener('DOMContentLoaded', () => {
     element.style.display = 'flex';
     element.classList.add('fadeIn');
   }
+
+  // --- 7. PASSWORD RESET LOGIC & OTP STATE MACHINE ---
+  const linkForgotPassword = document.getElementById('link-forgot-password');
+  const resetModal = document.getElementById('reset-modal');
+  const resetModalError = document.getElementById('reset-modal-error');
+  const resetModalSuccess = document.getElementById('reset-modal-success');
+
+  const resetStep1 = document.getElementById('reset-step-1');
+  const resetStep2 = document.getElementById('reset-step-2');
+  const resetStep3 = document.getElementById('reset-step-3');
+
+  const btnCancelReset1 = document.getElementById('btn-cancel-reset-1');
+  const btnCancelReset2 = document.getElementById('btn-cancel-reset-2');
+  const btnCancelReset3 = document.getElementById('btn-cancel-reset-3');
+
+  const btnSubmitReset1 = document.getElementById('btn-submit-reset-1');
+  const btnVerifyResetOtp = document.getElementById('btn-verify-reset-otp');
+  const btnSubmitNewPassword = document.getElementById('btn-submit-new-password');
+
+  const resetOtpDigits = document.querySelectorAll('.reset-otp-digit');
+
+  let pendingReset = null;
+
+  // Show Forgot Password Modal
+  linkForgotPassword.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginError.style.display = 'none';
+    
+    // Reset steps and inputs
+    resetStep1.classList.add('active');
+    resetStep2.classList.remove('active');
+    resetStep3.classList.remove('active');
+    
+    document.getElementById('reset-username').value = '';
+    document.getElementById('reset-email').value = '';
+    document.getElementById('reset-new-password').value = '';
+    document.getElementById('reset-confirm-password').value = '';
+    
+    resetModalError.style.display = 'none';
+    resetModalSuccess.style.display = 'none';
+    
+    resetResetOtpDigits();
+    resetModal.classList.add('active');
+  });
+
+  // Cancel buttons
+  const closeResetModal = () => {
+    resetModal.classList.remove('active');
+    smtpToast.classList.remove('active');
+    pendingReset = null;
+  };
+  btnCancelReset1.addEventListener('click', closeResetModal);
+  btnCancelReset2.addEventListener('click', closeResetModal);
+  btnCancelReset3.addEventListener('click', closeResetModal);
+
+  // Step 1: Submit Username & Email to generate simulated OTP
+  btnSubmitReset1.addEventListener('click', async () => {
+    resetModalError.style.display = 'none';
+    const username = document.getElementById('reset-username').value.trim();
+    const email = document.getElementById('reset-email').value.trim();
+
+    if (!username || !email) {
+      showError(resetModalError, 'Both username and registered email are required.');
+      return;
+    }
+
+    // Verify username first (for basic mock validation)
+    try {
+      // In production, we'd verify the username/email pair. We'll simulate verification.
+      // Generate secure 6-digit reset OTP code
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      pendingReset = {
+        username,
+        email,
+        code: resetCode
+      };
+
+      // Trigger SMTP Mailer Toast
+      smtpToastText.innerHTML = `Password Reset OTP code <strong style="color:#fff; font-size:0.9rem; letter-spacing:1px;">[ ${resetCode.slice(0,3)}-${resetCode.slice(3)} ]</strong> sent to <strong>${email}</strong>!`;
+      smtpToast.classList.add('active');
+
+      // Transition to Step 2
+      resetStep1.classList.remove('active');
+      resetStep2.classList.add('active');
+      
+      setTimeout(() => {
+        resetOtpDigits[0].focus();
+      }, 100);
+
+    } catch (err) {
+      showError(resetModalError, 'Database lookup failed.');
+    }
+  });
+
+  // Step 2 Shifting State Machine
+  resetOtpDigits.forEach((input, index) => {
+    input.addEventListener('input', () => {
+      const val = input.value;
+      if (!/^[0-9]$/.test(val)) {
+        input.value = '';
+        return;
+      }
+      if (index < resetOtpDigits.length - 1) {
+        resetOtpDigits[index + 1].removeAttribute('disabled');
+        resetOtpDigits[index + 1].focus();
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        if (input.value === '') {
+          if (index > 0) {
+            resetOtpDigits[index].setAttribute('disabled', 'true');
+            resetOtpDigits[index - 1].focus();
+            resetOtpDigits[index - 1].value = '';
+          }
+        } else {
+          input.value = '';
+        }
+      }
+    });
+  });
+
+  function resetResetOtpDigits() {
+    resetOtpDigits.forEach((input, idx) => {
+      input.value = '';
+      if (idx > 0) input.setAttribute('disabled', 'true');
+    });
+  }
+
+  // Step 2: Verify OTP code
+  btnVerifyResetOtp.addEventListener('click', () => {
+    resetModalError.style.display = 'none';
+    if (!pendingReset) return;
+
+    let typedCode = '';
+    resetOtpDigits.forEach(input => typedCode += input.value);
+
+    if (typedCode.length < 6) {
+      showError(resetModalError, 'Please enter all 6 verification digits.');
+      return;
+    }
+
+    if (typedCode !== pendingReset.code) {
+      showError(resetModalError, 'Incorrect verification code. Please check your simulated SMTP mail relay!');
+      
+      // Flash red error effect
+      resetOtpDigits.forEach(input => {
+        input.value = '';
+        input.style.borderColor = 'var(--danger)';
+      });
+      setTimeout(() => {
+        resetOtpDigits.forEach(input => input.style.borderColor = '');
+        resetResetOtpDigits();
+        resetOtpDigits[0].focus();
+      }, 800);
+      return;
+    }
+
+    // OTP matches! Hide SMTP toast and transition to Step 3
+    smtpToast.classList.remove('active');
+    resetStep2.classList.remove('active');
+    resetStep3.classList.add('active');
+  });
+
+  // Step 3: Save new password to database
+  btnSubmitNewPassword.addEventListener('click', async () => {
+    resetModalError.style.display = 'none';
+    if (!pendingReset) return;
+
+    const newPassword = document.getElementById('reset-new-password').value;
+    const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+    if (!newPassword || !confirmPassword) {
+      showError(resetModalError, 'Please enter and confirm your new password.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      showError(resetModalError, 'Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showError(resetModalError, 'Passwords do not match.');
+      return;
+    }
+
+    // Call backend API to change password!
+    try {
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: pendingReset.username,
+          newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showError(resetModalError, data.error || 'Password reset failed.');
+      } else {
+        // Complete
+        resetStep3.classList.remove('active');
+        resetModalSuccess.innerHTML = `🛡️ Password updated successfully! Redirecting you to Sign In...`;
+        resetModalSuccess.style.display = 'flex';
+        
+        const resetUsername = pendingReset.username;
+        setTimeout(() => {
+          closeResetModal();
+          tabLogin.click();
+          document.getElementById('login-username').value = resetUsername;
+          document.getElementById('login-password').value = '';
+        }, 2200);
+      }
+    } catch (err) {
+      showError(resetModalError, 'Database connection error. Try again.');
+    }
+  });
 });

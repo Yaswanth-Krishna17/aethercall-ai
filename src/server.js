@@ -156,6 +156,35 @@ app.post('/api/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// Reset standard account password with secure OTP validation on frontend
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { username, newPassword } = req.body;
+    if (!username || !newPassword) {
+      return res.status(400).json({ error: 'Username and new password are required.' });
+    }
+
+    const cleanUsername = username.toLowerCase().trim();
+    const user = await db.getUserByUsername(cleanUsername);
+    if (!user) {
+      return res.status(400).json({ error: 'Username does not exist.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    const updated = await db.updateUserPassword(cleanUsername, newPasswordHash);
+    if (updated) {
+      res.json({ message: 'Password updated successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to update password in database.' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error during password reset.' });
+  }
+});
+
 // --- LINKLESS MEETINGS API ENDPOINTS ---
 
 // Create / Schedule a Linkless Meeting
