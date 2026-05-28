@@ -41,7 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggleMic = document.getElementById('btn-toggle-mic');
   const btnToggleCam = document.getElementById('btn-toggle-cam');
   const btnToggleStt = document.getElementById('btn-toggle-stt');
+  const btnToggleChat = document.getElementById('btn-toggle-chat');
   const btnEndCall = document.getElementById('btn-end-call');
+  const chatSidePanel = document.querySelector('.chat-side-panel');
 
   // Host Analytics Widgets
   const hostStats = document.getElementById('host-stats');
@@ -110,9 +112,42 @@ document.addEventListener('DOMContentLoaded', () => {
         video: { width: 640, height: 360, frameRate: { ideal: 24 } },
         audio: true
       });
-      
-      // Feed local preview tag
-      localVideo.srcObject = localStream;
+    } catch (err) {
+      console.warn('Full media capture failed, attempting audio-only capture...', err);
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Hide local video frame and display fallback avatar placeholder
+        localVideo.style.display = 'none';
+        localPlaceholder.style.display = 'flex';
+        localPlaceholder.innerHTML = `
+          <div id="local-avatar" class="avatar" style="background: linear-gradient(135deg, var(--success), #047857); font-size: 2rem;">${currentUser.fullName.charAt(0).toUpperCase()}</div>
+          <span style="font-size: 0.88rem; color: var(--text-muted);">Your camera is turned off</span>
+        `;
+      } catch (audioErr) {
+        console.error('All media capture devices blocked.', audioErr);
+        // Both video and audio failed
+        localVideo.style.display = 'none';
+        localPlaceholder.style.display = 'flex';
+        localPlaceholder.innerHTML = `
+          <div class="avatar" style="background: var(--danger); font-size: 2rem;">🚫</div>
+          <span style="font-size: 0.88rem; color: var(--danger);">No camera/mic access</span>
+        `;
+      }
+    }
+
+    if (localStream) {
+      // Feed local preview tag if video tracks exist
+      if (localStream.getVideoTracks().length > 0) {
+        localVideo.srcObject = localStream;
+        localVideo.play().catch(e => console.warn('Local preview video autoplay blocked:', e));
+      } else {
+        localVideo.style.display = 'none';
+        localPlaceholder.style.display = 'flex';
+        localPlaceholder.innerHTML = `
+          <div id="local-avatar" class="avatar" style="background: linear-gradient(135deg, var(--success), #047857); font-size: 2rem;">${currentUser.fullName.charAt(0).toUpperCase()}</div>
+          <span style="font-size: 0.88rem; color: var(--text-muted);">Your camera is turned off</span>
+        `;
+      }
       
       // Start local client-side MediaPipe analysis
       if (window.initializeFocusTracker) {
@@ -126,8 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       }
-    } catch (err) {
-      console.error('Camera/microphone access blocked by OS/browser.', err);
+    } else {
       // Trigger non-camera camera-less heuristics in focus.js
       if (window.initializeFocusTracker) {
         window.initializeFocusTracker(null, (score, details) => {
@@ -137,14 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       }
-      
-      // Hide local video frame and display a placeholder avatar
-      localVideo.style.display = 'none';
-      localPlaceholder.style.display = 'flex';
-      localPlaceholder.innerHTML = `
-        <div class="avatar" style="background: var(--danger); font-size: 2rem;">🚫</div>
-        <span style="font-size: 0.88rem; color: var(--danger);">No camera access</span>
-      `;
     }
   }
 
@@ -312,16 +338,30 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    // Receive Remote media tracks
+    // Receive Remote media tracks with cross-browser stream extraction fallback and programmatic play activation
     pc.ontrack = (event) => {
-      if (video.srcObject !== event.streams[0]) {
-        video.srcObject = event.streams[0];
-        video.style.display = 'block';
-        
-        // Hide camera-off placeholder if streams are active
-        const placeholder = wrapper.querySelector('.video-placeholder');
-        if (placeholder) placeholder.style.display = 'none';
+      let remoteStream = event.streams && event.streams[0];
+      
+      // Fallback: If event.streams[0] is null/empty, construct a new MediaStream from tracks
+      if (!remoteStream) {
+        if (!video.srcObject) {
+          video.srcObject = new MediaStream();
+        }
+        video.srcObject.addTrack(event.track);
+        remoteStream = video.srcObject;
+      } else if (video.srcObject !== remoteStream) {
+        video.srcObject = remoteStream;
       }
+
+      // Ensure video is visible and placeholder avatar is hidden
+      video.style.display = 'block';
+      const placeholder = wrapper.querySelector('.video-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+
+      // Explicitly trigger programmatic playback to bypass strict iOS/Android autoplay policies
+      video.play().catch(playErr => {
+        console.warn(`[WebRTC] Programmatic video.play() failed (awaiting user gesture):`, playErr);
+      });
     };
 
     const peerRecord = {
@@ -523,6 +563,12 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('chat-message', { text });
     }
     chatInputField.value = '';
+  });
+
+  // Chat sidebar panel visibility toggler
+  btnToggleChat.addEventListener('click', () => {
+    const isCollapsed = chatSidePanel.classList.toggle('collapsed');
+    btnToggleChat.className = isCollapsed ? 'control-btn active-off' : 'control-btn';
   });
 
   // Disconnect button
