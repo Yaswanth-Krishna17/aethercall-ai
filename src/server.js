@@ -279,8 +279,10 @@ app.get('/api/test-email', async (req, res) => {
 // Register standard account
 app.post('/api/register', async (req, res) => {
   try {
+    console.log('[REGISTER] Body received:', JSON.stringify(req.body));
     const { username, password, fullName, email } = req.body;
     if (!username || !password || !fullName || !email) {
+      console.log('[REGISTER] Missing fields - username:', !!username, 'password:', !!password, 'fullName:', !!fullName, 'email:', !!email);
       return res.status(400).json({ error: 'All fields are required.' });
     }
 

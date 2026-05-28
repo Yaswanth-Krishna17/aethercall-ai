@@ -327,6 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // OTP Code Verified successfully, proceed to backend registration save!
+      console.log('[DEBUG] OTP verified! pendingRegistration =', JSON.stringify(pendingRegistration));
       const { fullName, username, password, email } = pendingRegistration;
 
       // Guard: ensure all fields are present before calling register
@@ -335,6 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         otpError.style.display = 'flex';
         return;
       }
+
+      console.log('[DEBUG] Calling /api/register with:', { fullName, username, email, passwordLength: password?.length });
 
       const res = await fetch('/api/register', {
         method: 'POST',
