@@ -14,6 +14,43 @@ import { moderateContent } from './moderator.js';
 // In-Memory Secure OTP Store (Format: email => { otp, expiresAt })
 const otpStore = new Map();
 
+// Helper to generate unique username suggestions
+async function generateUsernameSuggestions(username) {
+  const suggestions = [];
+  const base = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Try generating up to 3 unique alternatives
+  let attempts = 0;
+  while (suggestions.length < 3 && attempts < 20) {
+    attempts++;
+    let alt;
+    const rand = Math.floor(100 + Math.random() * 900); // 3-digit number
+    const suffixes = [rand.toString(), (new Date().getFullYear()).toString(), 'aether'];
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    
+    // Mix it up
+    if (Math.random() > 0.5) {
+      alt = `${base}${suffix}`;
+    } else {
+      alt = `${base}_${Math.floor(10 + Math.random() * 89)}`;
+    }
+    
+    // Verify it doesn't already exist and is not already suggested
+    if (!suggestions.includes(alt)) {
+      const exists = await db.getUserByUsername(alt);
+      if (!exists) {
+        suggestions.push(alt);
+      }
+    }
+  }
+  
+  // Fallbacks if we can't find unique ones
+  if (suggestions.length === 0) {
+    suggestions.push(`${base}${Math.floor(1000 + Math.random() * 9000)}`);
+  }
+  return suggestions;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -68,7 +105,11 @@ app.post('/api/otp/send', async (req, res) => {
       const cleanUsername = username.toLowerCase().trim();
       const existing = await db.getUserByUsername(cleanUsername);
       if (existing) {
-        return res.status(400).json({ error: 'Username is already taken.' });
+        const suggestions = await generateUsernameSuggestions(cleanUsername);
+        return res.status(400).json({ 
+          error: 'Username is already taken.', 
+          suggestions 
+        });
       }
     }
 
@@ -190,21 +231,27 @@ app.post('/api/otp/verify', (req, res) => {
 // Register standard account
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password, fullName } = req.body;
-    if (!username || !password || !fullName) {
+    const { username, password, fullName, email } = req.body;
+    if (!username || !password || !fullName || !email) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
     const cleanUsername = username.toLowerCase().trim();
+    const cleanEmail = email.toLowerCase().trim();
+    
     const existing = await db.getUserByUsername(cleanUsername);
     if (existing) {
-      return res.status(400).json({ error: 'Username is already taken.' });
+      const suggestions = await generateUsernameSuggestions(cleanUsername);
+      return res.status(400).json({ 
+        error: 'Username is already taken.', 
+        suggestions 
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    const newUser = await db.createUser(cleanUsername, passwordHash, fullName);
+    const newUser = await db.createUser(cleanUsername, passwordHash, fullName, cleanEmail);
     res.status(201).json({ message: 'User registered successfully', username: newUser.username });
   } catch (err) {
     console.error(err);
@@ -263,7 +310,7 @@ app.post('/api/login/google', async (req, res) => {
       // Automatically create a new account in our DB with a random password
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(Math.random().toString(36), salt);
-      user = await db.createUser(username, passwordHash, fullName);
+      user = await db.createUser(username, passwordHash, fullName, email);
       console.log(`[AUTH-GOOGLE] Registered new Google User: ${username} (${email})`);
     } else {
       console.log(`[AUTH-GOOGLE] Authenticated existing Google User: ${username} (${email})`);

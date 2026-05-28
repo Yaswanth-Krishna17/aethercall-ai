@@ -45,12 +45,13 @@ export async function getUserByUsername(username) {
 }
 
 // Create new user account
-export async function createUser(username, passwordHash, fullName) {
+export async function createUser(username, passwordHash, fullName, email) {
   const db = await readDB();
   const newUser = {
     username: username.toLowerCase().trim(),
     passwordHash,
     fullName: fullName.trim(),
+    email: email ? email.toLowerCase().trim() : '',
     createdAt: new Date().toISOString()
   };
   db.users.push(newUser);

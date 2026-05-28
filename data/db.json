@@ -1,4 +1,20 @@
 {
-  "users": [],
-  "meetings": []
+  "users": [
+    {
+      "username": "yaswanth1704",
+      "passwordHash": "$2a$10$gfLUviKQ5qHj.uEaKkWRmOCctKr3ZdZr3liot/uioBbC7I/F5Fv..",
+      "fullName": "Yaswanth",
+      "createdAt": "2026-05-28T15:36:41.432Z"
+    }
+  ],
+  "meetings": [
+    {
+      "id": "565-584-856",
+      "title": "aiml",
+      "host": "yaswanth1704",
+      "invitees": [],
+      "createdAt": "2026-05-28T15:37:14.684Z",
+      "status": "scheduled"
+    }
+  ]
 }

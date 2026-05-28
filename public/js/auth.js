@@ -194,6 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!res.ok) {
         showError(regError, data.error || 'Failed to dispatch verification code.');
+        if (data.suggestions) {
+          displaySuggestions(data.suggestions);
+        }
         return;
       }
 
@@ -330,18 +333,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // OTP Code Verified successfully, proceed to backend registration save!
-      const { fullName, username, password } = pendingRegistration;
+      const { fullName, username, password, email } = pendingRegistration;
 
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, username, password })
+        body: JSON.stringify({ fullName, username, password, email })
       });
 
       const data = await res.json();
       if (!res.ok) {
         otpError.textContent = data.error || 'Database registration failed.';
         otpError.style.display = 'flex';
+        if (data.suggestions) {
+          displaySuggestions(data.suggestions);
+        }
       } else {
         // Complete registration workflow
         otpModal.classList.remove('active');
@@ -372,6 +378,85 @@ document.addEventListener('DOMContentLoaded', () => {
     element.textContent = message;
     element.style.display = 'flex';
     element.classList.add('fadeIn');
+  }
+
+  // Smart Username Suggestions UI Generator
+  const usernameInput = document.getElementById('reg-username');
+  if (usernameInput) {
+    usernameInput.addEventListener('input', () => {
+      const container = document.getElementById('username-suggestions-container');
+      if (container) {
+        container.remove();
+      }
+    });
+  }
+
+  function displaySuggestions(suggestions) {
+    let container = document.getElementById('username-suggestions-container');
+    if (container) {
+      container.remove();
+    }
+    
+    if (!suggestions || suggestions.length === 0 || !usernameInput) return;
+    
+    container = document.createElement('div');
+    container.id = 'username-suggestions-container';
+    container.style.marginTop = '8px';
+    container.style.padding = '10px 12px';
+    container.style.borderRadius = '10px';
+    container.style.background = 'rgba(255, 255, 255, 0.02)';
+    container.style.border = '1px solid rgba(255, 255, 255, 0.06)';
+    container.style.fontSize = '0.82rem';
+    container.classList.add('fadeIn');
+    
+    const title = document.createElement('div');
+    title.style.color = '#94a3b8';
+    title.style.marginBottom = '8px';
+    title.innerHTML = '💡 <strong>Username taken.</strong> Try one of these:';
+    container.appendChild(title);
+    
+    const list = document.createElement('div');
+    list.style.display = 'flex';
+    list.style.gap = '8px';
+    list.style.flexWrap = 'wrap';
+    
+    suggestions.forEach(suggestion => {
+      const badge = document.createElement('span');
+      badge.textContent = `@${suggestion}`;
+      badge.style.background = 'linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(79, 70, 229, 0.1))';
+      badge.style.border = '1px solid rgba(124, 58, 237, 0.25)';
+      badge.style.color = '#d8b4fe';
+      badge.style.padding = '5px 12px';
+      badge.style.borderRadius = '20px';
+      badge.style.cursor = 'pointer';
+      badge.style.fontWeight = '500';
+      badge.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+      badge.style.display = 'inline-flex';
+      badge.style.alignItems = 'center';
+      
+      badge.addEventListener('mouseenter', () => {
+        badge.style.background = 'linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(79, 70, 229, 0.2))';
+        badge.style.borderColor = 'rgba(124, 58, 237, 0.5)';
+        badge.style.transform = 'translateY(-1px)';
+      });
+      
+      badge.addEventListener('mouseleave', () => {
+        badge.style.background = 'linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(79, 70, 229, 0.1))';
+        badge.style.borderColor = 'rgba(124, 58, 237, 0.25)';
+        badge.style.transform = 'translateY(0)';
+      });
+      
+      badge.addEventListener('click', () => {
+        usernameInput.value = suggestion;
+        container.remove();
+        regError.style.display = 'none';
+      });
+      
+      list.appendChild(badge);
+    });
+    
+    container.appendChild(list);
+    usernameInput.parentNode.appendChild(container);
   }
 
   // --- 7. PASSWORD RESET LOGIC & OTP STATE MACHINE ---
