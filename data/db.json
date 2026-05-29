@@ -5,6 +5,20 @@
       "passwordHash": "$2a$10$gfLUviKQ5qHj.uEaKkWRmOCctKr3ZdZr3liot/uioBbC7I/F5Fv..",
       "fullName": "Yaswanth",
       "createdAt": "2026-05-28T15:36:41.432Z"
+    },
+    {
+      "username": "yaswanth",
+      "passwordHash": "$2a$10$zreJpKXhQih2YjKdplfJ5elFoG.s0hyECLAOcM2ijYW52OAWP2kyC",
+      "fullName": "Yaswanth",
+      "email": "yaswanthkrishna1704@gmail.com",
+      "createdAt": "2026-05-28T16:36:48.169Z"
+    },
+    {
+      "username": "tarakram",
+      "passwordHash": "$2a$10$bn6EuNEu0Ej42fXb1UHeReQXKC8Bmct2/pu820YuCHVXLx25q4mUu",
+      "fullName": "tarakram",
+      "email": "tarakram0607@gmail.com",
+      "createdAt": "2026-05-28T16:39:59.952Z"
     }
   ],
   "meetings": [
@@ -15,6 +29,16 @@
       "invitees": [],
       "createdAt": "2026-05-28T15:37:14.684Z",
       "status": "scheduled"
+    },
+    {
+      "id": "211-210-314",
+      "title": "ML",
+      "host": "yaswanth",
+      "invitees": [
+        "tarakram"
+      ],
+      "createdAt": "2026-05-28T16:44:03.970Z",
+      "status": "ended"
     }
   ]
 }

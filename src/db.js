@@ -1,124 +1,106 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DB_PATH = path.join(__dirname, '..', 'data', 'db.json');
+// Connect to local MongoDB instance
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-video-conference';
 
-// Helper to ensure database folder exists
-async function ensureDir(filePath) {
-  const dir = path.dirname(filePath);
-  try {
-    await fs.mkdir(dir, { recursive: true });
-  } catch (err) {
-    if (err.code !== 'EEXIST') throw err;
-  }
-}
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('🚀 Successfully connected to MongoDB database.'))
+  .catch((err) => console.error('❌ MongoDB database connection error:', err));
 
-// Read database contents
-async function readDB() {
-  try {
-    await ensureDir(DB_PATH);
-    const data = await fs.readFile(DB_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    const initial = { users: [], meetings: [] };
-    await fs.writeFile(DB_PATH, JSON.stringify(initial, null, 2), 'utf-8');
-    return initial;
-  }
-}
+// User Schema & Model
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  passwordHash: { type: String, required: true },
+  fullName: { type: String, required: true, trim: true },
+  email: { type: String, lowercase: true, trim: true, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
 
-// Write database contents atomically
-async function writeDB(data) {
-  await ensureDir(DB_PATH);
-  const tempPath = `${DB_PATH}.tmp`;
-  await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
-  await fs.rename(tempPath, DB_PATH);
-}
+const User = mongoose.model('User', userSchema);
+
+// Meeting Schema & Model
+const meetingSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true, trim: true },
+  host: { type: String, required: true, lowercase: true, trim: true },
+  invitees: [{ type: String, lowercase: true, trim: true }],
+  status: { type: String, enum: ['scheduled', 'active', 'ended'], default: 'scheduled' },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Meeting = mongoose.model('Meeting', meetingSchema);
 
 // Query user by username (case-insensitive)
 export async function getUserByUsername(username) {
   if (!username) return null;
-  const db = await readDB();
-  return db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  return await User.findOne({ username: username.toLowerCase().trim() }).lean();
 }
 
 // Create new user account
 export async function createUser(username, passwordHash, fullName, email) {
-  const db = await readDB();
-  const newUser = {
+  const newUser = new User({
     username: username.toLowerCase().trim(),
     passwordHash,
     fullName: fullName.trim(),
-    email: email ? email.toLowerCase().trim() : '',
-    createdAt: new Date().toISOString()
-  };
-  db.users.push(newUser);
-  await writeDB(db);
-  return newUser;
+    email: email ? email.toLowerCase().trim() : ''
+  });
+  const saved = await newUser.save();
+  return saved.toObject();
 }
 
 // Create scheduled linkless meeting record
 export async function createMeeting(id, title, host, invitees) {
-  const db = await readDB();
-  const newMeeting = {
+  const newMeeting = new Meeting({
     id,
     title: title.trim(),
     host: host.toLowerCase().trim(),
-    invitees: invitees.map(i => i.toLowerCase().trim()),
-    createdAt: new Date().toISOString(),
-    status: 'scheduled' // 'scheduled', 'active', 'ended'
-  };
-  db.meetings.push(newMeeting);
-  await writeDB(db);
-  return newMeeting;
+    invitees: invitees.map(i => i.toLowerCase().trim())
+  });
+  const saved = await newMeeting.save();
+  return saved.toObject();
 }
 
 // Fetch single meeting detail
 export async function getMeeting(id) {
-  const db = await readDB();
-  return db.meetings.find(m => m.id === id);
+  if (!id) return null;
+  return await Meeting.findOne({ id }).lean();
 }
 
 // Update meeting state
 export async function updateMeetingStatus(id, status) {
-  const db = await readDB();
-  const meeting = db.meetings.find(m => m.id === id);
-  if (meeting) {
-    meeting.status = status;
-    await writeDB(db);
-  }
-  return meeting;
+  return await Meeting.findOneAndUpdate(
+    { id },
+    { $set: { status } },
+    { new: true }
+  ).lean();
 }
 
 // Get all meetings a user is associated with (either hosting or invited to)
 export async function getUserMeetings(username) {
-  const db = await readDB();
   const lowerUser = username.toLowerCase().trim();
-  return db.meetings.filter(m => m.host === lowerUser || m.invitees.includes(lowerUser));
+  return await Meeting.find({
+    $or: [
+      { host: lowerUser },
+      { invitees: lowerUser }
+    ]
+  }).lean();
 }
 
 // Update a user's password
 export async function updateUserPassword(username, newPasswordHash) {
-  const db = await readDB();
-  const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase().trim());
-  if (user) {
-    user.passwordHash = newPasswordHash;
-    await writeDB(db);
-    return true;
-  }
-  return false;
+  const result = await User.updateOne(
+    { username: username.toLowerCase().trim() },
+    { $set: { passwordHash: newPasswordHash } }
+  );
+  return result.modifiedCount > 0;
 }
 
 // Update meeting invitees list
 export async function updateMeetingInvitees(id, invitees) {
-  const db = await readDB();
-  const meeting = db.meetings.find(m => m.id === id);
-  if (meeting) {
-    meeting.invitees = invitees.map(i => i.toLowerCase().trim());
-    await writeDB(db);
-    return meeting;
-  }
-  return null;
+  const cleanInvitees = invitees.map(i => i.toLowerCase().trim());
+  return await Meeting.findOneAndUpdate(
+    { id },
+    { $set: { invitees: cleanInvitees } },
+    { new: true }
+  ).lean();
 }
