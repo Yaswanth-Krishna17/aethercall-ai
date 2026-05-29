@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 import * as db from './db.js';
 import { moderateContent } from './moderator.js';
@@ -55,66 +55,26 @@ async function generateUsernameSuggestions(username) {
   return suggestions;
 }
 
-const emailUser = process.env.EMAIL_USER;
-const emailPass = process.env.EMAIL_PASS;
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-let transporter = null;
-
-async function getTransporter() {
-  if (transporter) return transporter;
-
-  let host = 'smtp.gmail.com';
-  let tlsOptions = {};
-
-  try {
-    const ipv4s = await dns.promises.resolve4('smtp.gmail.com');
-    if (ipv4s && ipv4s.length > 0) {
-      host = ipv4s[0];
-      tlsOptions = { servername: 'smtp.gmail.com' };
-      console.log(`📡 Dynamically resolved smtp.gmail.com to IPv4: ${host}`);
-    }
-  } catch (err) {
-    console.warn('⚠️ Dynamic DNS resolution for Gmail SMTP failed, falling back to hostname:', err.message);
-  }
-
-  transporter = nodemailer.createTransport({
-    host: host,
-    port: 465,
-    secure: true,
-    tls: tlsOptions,
-    auth: {
-      user: emailUser || '',
-      pass: emailPass || ''
-    }
-  });
-
-  return transporter;
-}
-
-// SMTP Transporter verification on startup
-if (emailUser && emailPass) {
-  getTransporter().then(activeTransporter => {
-    activeTransporter.verify((error, success) => {
-      if (error) {
-        console.error('❌ Nodemailer SMTP Configuration Error:', error.message);
-      } else {
-        console.log('🚀 Nodemailer SMTP Transporter verified successfully!');
-      }
-    });
-  }).catch(err => {
-    console.error('❌ Failed to initialize Nodemailer Transporter:', err.message);
-  });
+// Verify Resend setup on startup
+if (resend) {
+  console.log('🚀 Resend Mail API client initialized successfully!');
 } else {
-  console.warn('⚠️ SMTP credentials not set. Email verification will fail until EMAIL_USER and EMAIL_PASS are set in your environment!');
+  console.warn('⚠️ RESEND_API_KEY is not set. Email OTP verification will fail until you add it to your environment.');
 }
 
 // Reusable function to send OTP email
 async function sendOTPEmail(email, otp) {
-  const mailOptions = {
-    from: `"AetherCall AI Shield" <${emailUser}>`,
+  if (!resend) {
+    throw new Error('Resend client is not initialized. Please set RESEND_API_KEY.');
+  }
+
+  return resend.emails.send({
+    from: 'AetherCall AI Shield <onboarding@resend.dev>',
     to: email.toLowerCase().trim(),
     subject: 'Your Verification OTP',
-    text: `Your OTP is: ${otp}`,
     html: `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background-color: #090b0f; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
         <div style="text-align: center; margin-bottom: 25px;">
@@ -132,9 +92,7 @@ async function sendOTPEmail(email, otp) {
         </p>
       </div>
     `
-  };
-  const activeTransporter = await getTransporter();
-  return activeTransporter.sendMail(mailOptions);
+  });
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -279,24 +237,25 @@ app.get('/api/test-email', async (req, res) => {
       });
     }
 
-    console.log(`[SMTP-TEST] Sending simple verification test to: ${targetEmail}`);
-    
-    const mailOptions = {
-      from: `"AetherCall SMTP Test" <${emailUser}>`,
+    console.log(`[RESEND-TEST] Sending simple verification test to: ${targetEmail}`);
+
+    if (!resend) {
+      return res.status(500).json({ error: 'Resend client is not initialized. Please set RESEND_API_KEY.' });
+    }
+
+    await resend.emails.send({
+      from: 'AetherCall AI <onboarding@resend.dev>',
       to: targetEmail.toLowerCase().trim(),
-      subject: 'AetherCall AI - SMTP Verification Connection Test',
-      text: 'Congratulations! Your SMTP Gmail connection is working perfectly.',
+      subject: 'AetherCall AI - Resend API Verification Connection Test',
       html: `
         <div style="font-family: sans-serif; max-width: 450px; margin: 20px auto; padding: 25px; background-color: #0f172a; color: #f8fafc; border-radius: 10px; border: 1px solid #1e293b;">
-          <h2 style="color: #38bdf8; margin-top: 0;">🚀 SMTP Connection Verified</h2>
+          <h2 style="color: #38bdf8; margin-top: 0;">🚀 Resend Connection Verified</h2>
           <p>This is a successful connection test email sent from <strong>AetherCall AI</strong>.</p>
-          <p style="color: #94a3b8; font-size: 0.9rem;">Your EMAIL_USER and EMAIL_PASS environmental variables are correctly set and verified!</p>
+          <p style="color: #94a3b8; font-size: 0.9rem;">Your RESEND_API_KEY environmental variable is correctly set and verified!</p>
         </div>
       `
-    };
+    });
 
-    const activeTransporter = await getTransporter();
-    await activeTransporter.sendMail(mailOptions);
     res.json({ success: true, message: `Test email successfully sent to ${targetEmail}!` });
 
   } catch (err) {
