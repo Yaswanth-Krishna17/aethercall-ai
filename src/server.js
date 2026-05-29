@@ -58,22 +58,51 @@ async function generateUsernameSuggestions(username) {
 const emailUser = process.env.EMAIL_USER;
 const emailPass = process.env.EMAIL_PASS;
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: emailUser || '',
-    pass: emailPass || ''
+let transporter = null;
+
+async function getTransporter() {
+  if (transporter) return transporter;
+
+  let host = 'smtp.gmail.com';
+  let tlsOptions = {};
+
+  try {
+    const ipv4s = await dns.promises.resolve4('smtp.gmail.com');
+    if (ipv4s && ipv4s.length > 0) {
+      host = ipv4s[0];
+      tlsOptions = { servername: 'smtp.gmail.com' };
+      console.log(`📡 Dynamically resolved smtp.gmail.com to IPv4: ${host}`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Dynamic DNS resolution for Gmail SMTP failed, falling back to hostname:', err.message);
   }
-});
+
+  transporter = nodemailer.createTransport({
+    host: host,
+    port: 465,
+    secure: true,
+    tls: tlsOptions,
+    auth: {
+      user: emailUser || '',
+      pass: emailPass || ''
+    }
+  });
+
+  return transporter;
+}
 
 // SMTP Transporter verification on startup
 if (emailUser && emailPass) {
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error('❌ Nodemailer SMTP Configuration Error:', error.message);
-    } else {
-      console.log('🚀 Nodemailer SMTP Transporter verified successfully!');
-    }
+  getTransporter().then(activeTransporter => {
+    activeTransporter.verify((error, success) => {
+      if (error) {
+        console.error('❌ Nodemailer SMTP Configuration Error:', error.message);
+      } else {
+        console.log('🚀 Nodemailer SMTP Transporter verified successfully!');
+      }
+    });
+  }).catch(err => {
+    console.error('❌ Failed to initialize Nodemailer Transporter:', err.message);
   });
 } else {
   console.warn('⚠️ SMTP credentials not set. Email verification will fail until EMAIL_USER and EMAIL_PASS are set in your environment!');
@@ -104,7 +133,8 @@ async function sendOTPEmail(email, otp) {
       </div>
     `
   };
-  return transporter.sendMail(mailOptions);
+  const activeTransporter = await getTransporter();
+  return activeTransporter.sendMail(mailOptions);
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -265,7 +295,8 @@ app.get('/api/test-email', async (req, res) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    const activeTransporter = await getTransporter();
+    await activeTransporter.sendMail(mailOptions);
     res.json({ success: true, message: `Test email successfully sent to ${targetEmail}!` });
 
   } catch (err) {
