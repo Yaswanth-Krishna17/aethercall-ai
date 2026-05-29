@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 import * as db from './db.js';
 import { moderateContent } from './moderator.js';
@@ -55,24 +55,37 @@ async function generateUsernameSuggestions(username) {
   return suggestions;
 }
 
-const resendApiKey = process.env.RESEND_API_KEY;
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASS;
 
-// Verify Resend setup on startup
-if (resend) {
-  console.log('🚀 Resend Mail API client initialized successfully!');
+const transporter = emailUser && emailPass ? nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Use SSL/TLS
+  auth: {
+    user: emailUser,
+    pass: emailPass
+  },
+  connectionTimeout: 10000, // 10 seconds timeout
+  greetingTimeout: 10000,
+  socketTimeout: 10000
+}) : null;
+
+// Verify Nodemailer setup on startup
+if (transporter) {
+  console.log('🚀 Nodemailer SMTP transporter configured successfully!');
 } else {
-  console.warn('⚠️ RESEND_API_KEY is not set. Email OTP verification will fail until you add it to your environment.');
+  console.warn('⚠️ EMAIL_USER and/or EMAIL_PASS is not set. Email OTP verification will fail.');
 }
 
 // Reusable function to send OTP email
 async function sendOTPEmail(email, otp) {
-  if (!resend) {
-    throw new Error('Resend client is not initialized. Please set RESEND_API_KEY.');
+  if (!transporter) {
+    throw new Error('Nodemailer SMTP transporter is not initialized. Please set EMAIL_USER and EMAIL_PASS.');
   }
 
-  return resend.emails.send({
-    from: 'AetherCall AI Shield <onboarding@resend.dev>',
+  const mailOptions = {
+    from: `"AetherCall AI Shield" <${emailUser}>`,
     to: email.toLowerCase().trim(),
     subject: 'Your Verification OTP',
     html: `
@@ -92,7 +105,9 @@ async function sendOTPEmail(email, otp) {
         </p>
       </div>
     `
-  });
+  };
+
+  return transporter.sendMail(mailOptions);
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -237,24 +252,26 @@ app.get('/api/test-email', async (req, res) => {
       });
     }
 
-    console.log(`[RESEND-TEST] Sending simple verification test to: ${targetEmail}`);
+    console.log(`[SMTP-TEST] Sending simple verification test to: ${targetEmail}`);
 
-    if (!resend) {
-      return res.status(500).json({ error: 'Resend client is not initialized. Please set RESEND_API_KEY.' });
+    if (!transporter) {
+      return res.status(500).json({ error: 'Nodemailer SMTP transporter is not initialized. Please set EMAIL_USER and EMAIL_PASS.' });
     }
 
-    await resend.emails.send({
-      from: 'AetherCall AI <onboarding@resend.dev>',
+    const mailOptions = {
+      from: `"AetherCall AI Shield" <${emailUser}>`,
       to: targetEmail.toLowerCase().trim(),
-      subject: 'AetherCall AI - Resend API Verification Connection Test',
+      subject: 'AetherCall AI - SMTP Connection Test',
       html: `
         <div style="font-family: sans-serif; max-width: 450px; margin: 20px auto; padding: 25px; background-color: #0f172a; color: #f8fafc; border-radius: 10px; border: 1px solid #1e293b;">
-          <h2 style="color: #38bdf8; margin-top: 0;">🚀 Resend Connection Verified</h2>
+          <h2 style="color: #38bdf8; margin-top: 0;">🚀 SMTP Connection Verified</h2>
           <p>This is a successful connection test email sent from <strong>AetherCall AI</strong>.</p>
-          <p style="color: #94a3b8; font-size: 0.9rem;">Your RESEND_API_KEY environmental variable is correctly set and verified!</p>
+          <p style="color: #94a3b8; font-size: 0.9rem;">Your Nodemailer SMTP configuration (EMAIL_USER & EMAIL_PASS) is correctly set and verified!</p>
         </div>
       `
-    });
+    };
+
+    await transporter.sendMail(mailOptions);
 
     res.json({ success: true, message: `Test email successfully sent to ${targetEmail}!` });
 
