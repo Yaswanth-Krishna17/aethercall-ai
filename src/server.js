@@ -60,8 +60,8 @@ const emailPass = process.env.EMAIL_PASS;
 
 const transporter = emailUser && emailPass ? nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL/TLS
+  port: 587,
+  secure: false, // false for port 587 (STARTTLS)
   auth: {
     user: emailUser,
     pass: emailPass
