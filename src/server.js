@@ -11,6 +11,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 import * as db from './db.js';
 import { moderateContent } from './moderator.js';
@@ -55,59 +56,80 @@ async function generateUsernameSuggestions(username) {
   return suggestions;
 }
 
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey && resendApiKey !== 'your_resend_api_key_here' ? new Resend(resendApiKey) : null;
+
 const emailUser = process.env.EMAIL_USER;
 const emailPass = process.env.EMAIL_PASS;
 
 const transporter = emailUser && emailPass ? nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
-  secure: false, // false for port 587 (STARTTLS)
+  secure: false, // STARTTLS
   auth: {
     user: emailUser,
     pass: emailPass
   },
-  connectionTimeout: 10000, // 10 seconds timeout
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 10000
 }) : null;
 
-// Verify Nodemailer setup on startup
-if (transporter) {
-  console.log('🚀 Nodemailer SMTP transporter configured successfully!');
+// Verify setup on startup
+if (resend) {
+  console.log('🚀 Resend HTTP Mail API client initialized successfully (Preferred for Render cloud)!');
+} else if (transporter) {
+  console.log('🚀 Nodemailer SMTP transporter configured successfully (Fallback for local testing)!');
 } else {
-  console.warn('⚠️ EMAIL_USER and/or EMAIL_PASS is not set. Email OTP verification will fail.');
+  console.warn('⚠️ Neither RESEND_API_KEY nor SMTP credentials (EMAIL_USER & EMAIL_PASS) are set. Email OTP verification will fail.');
 }
 
 // Reusable function to send OTP email
 async function sendOTPEmail(email, otp) {
-  if (!transporter) {
-    throw new Error('Nodemailer SMTP transporter is not initialized. Please set EMAIL_USER and EMAIL_PASS.');
+  const cleanEmail = email.toLowerCase().trim();
+
+  const htmlContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background-color: #090b0f; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <span style="font-size: 2.5rem; font-weight: bold; background: linear-gradient(135deg, #7c3aed, #4f46e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Æ AetherCall AI</span>
+      </div>
+      <h2 style="font-size: 1.4rem; font-weight: 600; text-align: center; margin-bottom: 10px; color: #fff;">Verify Your Identity</h2>
+      <p style="font-size: 0.95rem; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 25px;">
+        Your OTP code is below. It will expire in 5 minutes.
+      </p>
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 15px 25px; text-align: center; font-size: 2.2rem; font-weight: 700; letter-spacing: 6px; color: #fff; margin-bottom: 25px; font-family: monospace;">
+        ${otp}
+      </div>
+      <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
+        If you did not request this verification, please ignore this email safely.
+      </p>
+    </div>
+  `;
+
+  // 1. Try Resend HTTP API first (works on Render free tier since port 443 is open)
+  if (resend) {
+    console.log(`[EMAIL] Dispatching OTP via Resend HTTP API to: ${cleanEmail}`);
+    return resend.emails.send({
+      from: 'AetherCall AI Shield <onboarding@resend.dev>',
+      to: cleanEmail,
+      subject: 'Your Verification OTP',
+      html: htmlContent
+    });
   }
 
-  const mailOptions = {
-    from: `"AetherCall AI Shield" <${emailUser}>`,
-    to: email.toLowerCase().trim(),
-    subject: 'Your Verification OTP',
-    html: `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background-color: #090b0f; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
-        <div style="text-align: center; margin-bottom: 25px;">
-          <span style="font-size: 2.5rem; font-weight: bold; background: linear-gradient(135deg, #7c3aed, #4f46e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Æ AetherCall AI</span>
-        </div>
-        <h2 style="font-size: 1.4rem; font-weight: 600; text-align: center; margin-bottom: 10px; color: #fff;">Verify Your Identity</h2>
-        <p style="font-size: 0.95rem; line-height: 1.6; color: #94a3b8; text-align: center; margin-bottom: 25px;">
-          Your OTP code is below. It will expire in 5 minutes.
-        </p>
-        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 15px 25px; text-align: center; font-size: 2.2rem; font-weight: 700; letter-spacing: 6px; color: #fff; margin-bottom: 25px; font-family: monospace;">
-          ${otp}
-        </div>
-        <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
-          If you did not request this verification, please ignore this email safely.
-        </p>
-      </div>
-    `
-  };
+  // 2. Fall back to Nodemailer SMTP (local test/paid hosting)
+  if (transporter) {
+    console.log(`[EMAIL] Dispatching OTP via Nodemailer SMTP to: ${cleanEmail}`);
+    const mailOptions = {
+      from: `"AetherCall AI Shield" <${emailUser}>`,
+      to: cleanEmail,
+      subject: 'Your Verification OTP',
+      html: htmlContent
+    };
+    return transporter.sendMail(mailOptions);
+  }
 
-  return transporter.sendMail(mailOptions);
+  throw new Error('No email dispatch mechanism configured. Please set RESEND_API_KEY or EMAIL_USER/EMAIL_PASS.');
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -246,39 +268,47 @@ app.get('/api/test-email', async (req, res) => {
       return res.status(400).json({ error: 'Query parameter ?email=... is required.' });
     }
 
-    if (!emailUser || !emailPass) {
-      return res.status(500).json({ 
-        error: 'SMTP credentials missing from environment. Add EMAIL_USER and EMAIL_PASS to your .env file.' 
+    const cleanEmail = targetEmail.toLowerCase().trim();
+
+    const htmlContent = `
+      <div style="font-family: sans-serif; max-width: 450px; margin: 20px auto; padding: 25px; background-color: #0f172a; color: #f8fafc; border-radius: 10px; border: 1px solid #1e293b;">
+        <h2 style="color: #38bdf8; margin-top: 0;">🚀 Connection Verified</h2>
+        <p>This is a successful connection test email sent from <strong>AetherCall AI</strong>.</p>
+        <p style="color: #94a3b8; font-size: 0.9rem;">Your email configuration is correctly set and verified!</p>
+      </div>
+    `;
+
+    if (resend) {
+      console.log(`[RESEND-TEST] Sending simple verification test to: ${cleanEmail}`);
+      await resend.emails.send({
+        from: 'AetherCall AI <onboarding@resend.dev>',
+        to: cleanEmail,
+        subject: 'AetherCall AI - Resend API Verification Connection Test',
+        html: htmlContent
       });
+      return res.json({ success: true, message: `Test email successfully sent via Resend API to ${cleanEmail}!` });
     }
 
-    console.log(`[SMTP-TEST] Sending simple verification test to: ${targetEmail}`);
-
-    if (!transporter) {
-      return res.status(500).json({ error: 'Nodemailer SMTP transporter is not initialized. Please set EMAIL_USER and EMAIL_PASS.' });
+    if (transporter) {
+      console.log(`[SMTP-TEST] Sending simple verification test to: ${cleanEmail}`);
+      const mailOptions = {
+        from: `"AetherCall AI Shield" <${emailUser}>`,
+        to: cleanEmail,
+        subject: 'AetherCall AI - SMTP Connection Test',
+        html: htmlContent
+      };
+      await transporter.sendMail(mailOptions);
+      return res.json({ success: true, message: `Test email successfully sent via SMTP to ${cleanEmail}!` });
     }
 
-    const mailOptions = {
-      from: `"AetherCall AI Shield" <${emailUser}>`,
-      to: targetEmail.toLowerCase().trim(),
-      subject: 'AetherCall AI - SMTP Connection Test',
-      html: `
-        <div style="font-family: sans-serif; max-width: 450px; margin: 20px auto; padding: 25px; background-color: #0f172a; color: #f8fafc; border-radius: 10px; border: 1px solid #1e293b;">
-          <h2 style="color: #38bdf8; margin-top: 0;">🚀 SMTP Connection Verified</h2>
-          <p>This is a successful connection test email sent from <strong>AetherCall AI</strong>.</p>
-          <p style="color: #94a3b8; font-size: 0.9rem;">Your Nodemailer SMTP configuration (EMAIL_USER & EMAIL_PASS) is correctly set and verified!</p>
-        </div>
-      `
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    res.json({ success: true, message: `Test email successfully sent to ${targetEmail}!` });
+    return res.status(500).json({ 
+      error: 'No email dispatch credentials found in environment. Add RESEND_API_KEY or EMAIL_USER/EMAIL_PASS.' 
+    });
 
   } catch (err) {
-    console.error('❌ SMTP Connection Test Failed:', err);
+    console.error('❌ Connection Test Failed:', err);
     res.status(500).json({ 
-      error: 'SMTP connection test failed. Check server console for full error logs.', 
+      error: 'Connection test failed. Check server console for full error logs.', 
       details: err.message 
     });
   }
